@@ -103,6 +103,11 @@ Given selected folders S:
 6. **Add persistent metadata CRUD (tags/description/notes)**
 7. **Validate persistence across selection changes and app restarts**
 
+### Layout stabilization rule (locked)
+- Render fixed-size/responsive **media containers first** and compute masonry placement from container dimensions before media bytes load.
+- Resize/reflow containers first, then stream image/video into prepositioned containers.
+- Goal: prevent layout jumping while assets load.
+
 ---
 
 ## Acceptance Criteria (Phase 1 complete)
