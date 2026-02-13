@@ -1,0 +1,9 @@
+[project]
+name = "mediamanager"
+version = "0.1.0"
+description = "Local-first media asset manager"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

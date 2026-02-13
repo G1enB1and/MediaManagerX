@@ -33,5 +33,10 @@ The gallery must:
 
 ---
 
+## Embedded Web Strategy (Locked)
+- Use **PySide6 QWebEngineView** as the embedded web renderer for Phase 1.
+
+Rationale: first-party Qt integration, predictable desktop behavior on Windows, and clean path to iterate viewer performance before considering alternative wrappers.
+
 ## Next Build Target
 Phase 1 implementation should focus on this gallery experience first, before advanced tagging/AI features.

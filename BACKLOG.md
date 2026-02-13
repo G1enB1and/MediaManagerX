@@ -1,10 +1,10 @@
 # MediaManager Backlog (Current)
 
 ## Sprint 0 — Foundation
-- [ ] Create project scaffold (`app/`, `native/`, `server/`, `docs/`)
-- [ ] Choose embedded web strategy in PySide6 (QWebEngineView vs WebView2 wrapper)
-- [ ] Add path normalization utility (Windows-safe, case-insensitive handling)
-- [ ] Add DB bootstrap/migrations for `SCHEMA_V1`
+- [x] Create project scaffold (`app/`, `native/`, `server/`, `docs/`)
+- [x] Choose embedded web strategy in PySide6 (QWebEngineView vs WebView2 wrapper)
+- [x] Add path normalization utility (Windows-safe, case-insensitive handling)
+- [x] Add DB bootstrap/migrations for `SCHEMA_V1`
 
 ## Sprint 1 — Viewer Core
 - [ ] Implement masonry container-first layout engine (container dimensions before asset load)
