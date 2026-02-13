@@ -12,6 +12,7 @@
 - Unit test suite covering foundation modules.
 - Dev validation helper (`scripts/dev_check.py`).
 - First-run DB bootstrap helper (`scripts/setup.py`) and auto-init DB connector (`app/mediamanager/db/connect.py`) to create a blank database automatically.
+- Repo hygiene `.gitignore` for Python caches, temp test artifacts, and local runtime DB data.
 
 ### Notes
 - Current focus remains backend/data foundation for Phase 1 stability before UI wiring.

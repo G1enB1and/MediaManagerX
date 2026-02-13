@@ -1,0 +1,14 @@
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Local test/temp artifacts
+.tmp-tests/
+
+# Local runtime data
+data/
+
+# Local env/editor
+.venv/
+.env
+.DS_Store
