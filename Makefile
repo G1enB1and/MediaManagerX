@@ -1,4 +1,4 @@
-.PHONY: setup test run
+.PHONY: setup test run push-branch
 
 setup:
 	python3 scripts/setup.py
@@ -8,3 +8,6 @@ test:
 
 run:
 	python3 -m app.mediamanager.main
+
+push-branch:
+	bash scripts/push_subtree_branch.sh
