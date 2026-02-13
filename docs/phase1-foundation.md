@@ -10,5 +10,6 @@ Reasoning:
 
 ## Completed in this step
 - Project scaffold directories
-- Windows-safe path normalization utility
+- Windows-safe path normalization utility (now using `PureWindowsPath.as_posix()` to avoid duplicate slashes)
 - SQLite schema v1 bootstrap + init script
+- Basic unit tests for path normalization/scope checks and DB bootstrap table creation

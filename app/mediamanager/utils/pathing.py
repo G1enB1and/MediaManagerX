@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import PureWindowsPath
 
 
 def normalize_windows_path(path: str) -> str:
     """Normalize a filesystem path with Windows-friendly semantics.
 
     - Converts backslashes to slashes
-    - Normalizes `.` / `..`
-    - Case-folds drive letters and path for case-insensitive matching
+    - Normalizes `.` / `..` using Windows path rules
+    - Case-folds for case-insensitive matching
     """
-    p = Path(path)
-    normalized = str(p).replace('\\', '/')
+    p = PureWindowsPath(path)
+    normalized = p.as_posix()
     return normalized.casefold()
 
 
