@@ -1,0 +1,39 @@
+from __future__ import annotations
+
+import sqlite3
+from typing import Iterable
+
+from app.mediamanager.db.media_repo import add_media_item, list_media_in_scope
+from app.mediamanager.db.metadata_repo import get_media_metadata, upsert_media_metadata
+from app.mediamanager.db.selection_state import get_selection, replace_selection
+from app.mediamanager.db.tags_repo import attach_tags, list_media_tags
+
+
+class MediaRepository:
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn = conn
+
+    def ingest_media(self, path: str, media_type: str) -> int:
+        return add_media_item(self.conn, path, media_type)
+
+    def set_selection(self, selected_roots: Iterable[str]) -> None:
+        replace_selection(self.conn, selected_roots)
+
+    def current_selection(self) -> list[str]:
+        return get_selection(self.conn)
+
+    def scoped_media(self, selected_roots: list[str] | None = None) -> list[dict]:
+        roots = selected_roots if selected_roots is not None else self.current_selection()
+        return list_media_in_scope(self.conn, roots)
+
+    def save_metadata(self, media_id: int, title: str | None = None, description: str | None = None, notes: str | None = None) -> None:
+        upsert_media_metadata(self.conn, media_id, title=title, description=description, notes=notes)
+
+    def load_metadata(self, media_id: int) -> dict | None:
+        return get_media_metadata(self.conn, media_id)
+
+    def add_tags(self, media_id: int, tag_names: Iterable[str]) -> None:
+        attach_tags(self.conn, media_id, tag_names)
+
+    def get_tags(self, media_id: int) -> list[str]:
+        return list_media_tags(self.conn, media_id)
