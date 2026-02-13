@@ -32,6 +32,12 @@ make run
 ```
 This launches the current minimal bootstrap entrypoint and confirms the local DB path + initial state.
 
+## Tests / validation
+```bash
+make test
+```
+Runs `scripts/dev_check.py` (unit tests + basic sanity checks). Use `python3` explicitly (this repo assumes `python3`, not `python`).
+
 ### Manual alternative (still supported)
 ```bash
 python3 scripts/init_db.py --db-path ./data/mediamanager.db
