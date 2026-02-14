@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MediaManagerX</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <div class="brand">MediaManagerX</div>
+        <div class="status" id="status">Starting…</div>
+      </header>
+
+      <main>
+        <div class="pane">
+          <h2>Gallery (WebEngine scaffold)</h2>
+          <p>
+            This is the embedded web UI. Next: render real thumbnails + masonry and
+            wire folder scope via Qt ↔ JS bridge.
+          </p>
+          <div class="kv">
+            <div class="k">Selected folder</div>
+            <div class="v" id="selectedFolder">(none)</div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- QWebChannel is provided by Qt; this path works in Qt WebEngine -->
+    <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

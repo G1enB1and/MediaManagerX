@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject, Qt, Signal, Slot, QUrl
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
@@ -15,6 +15,27 @@ from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
 )
+from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtWebEngineWidgets import QWebEngineView
+
+
+class Bridge(QObject):
+    selectedFolderChanged = Signal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._selected_folder: str = ""
+
+    def set_selected_folder(self, folder: str) -> None:
+        folder = folder or ""
+        if folder == self._selected_folder:
+            return
+        self._selected_folder = folder
+        self.selectedFolderChanged.emit(self._selected_folder)
+
+    @Slot(result=str)
+    def get_selected_folder(self) -> str:
+        return self._selected_folder
 
 
 class MainWindow(QMainWindow):
@@ -22,6 +43,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("MediaManagerX")
         self.resize(1200, 800)
+
+        self.bridge = Bridge()
 
         self._build_menu()
         self._build_layout()
@@ -57,17 +80,20 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.scope_label)
         left_layout.addStretch(1)
 
-        # Right: gallery placeholder
+        # Right: embedded WebEngine UI scaffold
         right = QWidget()
         right_layout = QVBoxLayout(right)
-        right_layout.setContentsMargins(12, 12, 12, 12)
-        right_layout.addWidget(QLabel("Gallery (placeholder)"))
-        self.gallery_label = QLabel(
-            "UI shell is running. Next step: wire folder ingest + thumbnails + masonry."  # noqa: E501
-        )
-        self.gallery_label.setWordWrap(True)
-        right_layout.addWidget(self.gallery_label)
-        right_layout.addStretch(1)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.web = QWebEngineView()
+        right_layout.addWidget(self.web)
+
+        channel = QWebChannel(self.web.page())
+        channel.registerObject("bridge", self.bridge)
+        self.web.page().setWebChannel(channel)
+
+        index_path = Path(__file__).with_name("web") / "index.html"
+        self.web.setUrl(QUrl.fromLocalFile(str(index_path.resolve())))
 
         splitter.addWidget(left)
         splitter.addWidget(right)
@@ -79,7 +105,9 @@ class MainWindow(QMainWindow):
     def choose_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(self, "Choose a media folder")
         if folder:
-            self.scope_label.setText(str(Path(folder)))
+            folder_path = str(Path(folder))
+            self.scope_label.setText(folder_path)
+            self.bridge.set_selected_folder(folder_path)
 
     def about(self) -> None:
         QMessageBox.information(
