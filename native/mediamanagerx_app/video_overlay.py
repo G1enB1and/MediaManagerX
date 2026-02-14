@@ -6,7 +6,8 @@ from pathlib import Path
 from PySide6.QtCore import QEvent, QTimer, Qt, QUrl
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtGui import QImage, QPainter
-from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer, QVideoSink
+from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer, QVideoSink, QVideoFrame
+from PySide6.QtMultimedia import QVideoFrameFormat
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -262,10 +263,10 @@ class LightboxVideoOverlay(QWidget):
         self._show_controls()
         QTimer.singleShot(0, self.controls.raise_)
 
-        if req.autoplay:
-            self.player.play()
-        else:
-            self.player.pause()
+        # Kick the backend so we get the first frame even for non-autoplay.
+        self.player.play()
+        if not req.autoplay:
+            QTimer.singleShot(50, self.player.pause)
 
         self._show_controls()
 
@@ -281,10 +282,50 @@ class LightboxVideoOverlay(QWidget):
             except Exception:
                 pass
 
-    def _on_frame(self, frame) -> None:
+    def _on_frame(self, frame: QVideoFrame) -> None:
+        """Convert QVideoFrame to QImage for painting.
+
+        On some platforms/bindings, QVideoFrame.toImage() may not exist or may
+        return a null image. We try common packed RGB formats as a fallback.
+        """
+
         try:
-            img = frame.toImage()  # type: ignore[attr-defined]
-            self.video_view.set_image(img)
+            img = None
+            if hasattr(frame, "toImage"):
+                img = frame.toImage()  # type: ignore[attr-defined]
+            if img is not None and not img.isNull():
+                self.video_view.set_image(img)
+                return
+
+            # Fallback: map raw bytes for common formats
+            pf = frame.pixelFormat()
+            w = frame.width()
+            h = frame.height()
+
+            if not frame.map(QVideoFrame.MapMode.ReadOnly):
+                self.video_view.set_image(None)
+                return
+
+            try:
+                bpl = frame.bytesPerLine(0)
+                ptr = frame.bits(0)
+
+                qfmt = None
+                if pf == QVideoFrameFormat.PixelFormat.Format_BGRA8888:
+                    qfmt = QImage.Format.Format_ARGB32
+                elif pf == QVideoFrameFormat.PixelFormat.Format_RGBA8888:
+                    qfmt = QImage.Format.Format_RGBA8888
+                elif pf == QVideoFrameFormat.PixelFormat.Format_ARGB8888:
+                    qfmt = QImage.Format.Format_ARGB32
+
+                if qfmt is None:
+                    self.video_view.set_image(None)
+                    return
+
+                img2 = QImage(ptr, w, h, bpl, qfmt)
+                self.video_view.set_image(img2.copy())
+            finally:
+                frame.unmap()
         except Exception:
             self.video_view.set_image(None)
 
