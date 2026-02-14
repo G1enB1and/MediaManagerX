@@ -47,6 +47,11 @@ function renderMediaList(items) {
       ph.className = 'thumb placeholder';
       ph.textContent = 'VIDEO';
       card.appendChild(ph);
+
+      card.addEventListener('click', () => openLightboxByIndex(idx));
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') openLightboxByIndex(idx);
+      });
     }
 
     el.appendChild(card);
@@ -59,14 +64,29 @@ let gIndex = -1;
 function openLightboxByIndex(idx) {
   const lb = document.getElementById('lightbox');
   const img = document.getElementById('lightboxImg');
-  if (!lb || !img) return;
+  const vid = document.getElementById('lightboxVideo');
+  if (!lb || !img || !vid) return;
 
   if (!gMedia || gMedia.length === 0) return;
   if (idx < 0) idx = 0;
   if (idx >= gMedia.length) idx = gMedia.length - 1;
 
   gIndex = idx;
-  img.src = gMedia[gIndex].url;
+
+  const item = gMedia[gIndex];
+  if (item.media_type === 'video') {
+    img.style.display = 'none';
+    img.src = '';
+    vid.style.display = 'block';
+    vid.src = item.url;
+  } else {
+    vid.pause();
+    vid.style.display = 'none';
+    vid.src = '';
+    img.style.display = 'block';
+    img.src = item.url;
+  }
+
   lb.hidden = false;
 
   // prevent background scroll while open
@@ -76,9 +96,17 @@ function openLightboxByIndex(idx) {
 function closeLightbox() {
   const lb = document.getElementById('lightbox');
   const img = document.getElementById('lightboxImg');
-  if (!lb || !img) return;
+  const vid = document.getElementById('lightboxVideo');
+  if (!lb || !img || !vid) return;
   lb.hidden = true;
+
   img.src = '';
+  img.style.display = 'block';
+
+  vid.pause();
+  vid.src = '';
+  vid.style.display = 'none';
+
   gIndex = -1;
   document.body.style.overflow = '';
 }
@@ -97,10 +125,12 @@ function lightboxNext() {
 function wireLightbox() {
   const backdrop = document.getElementById('lightboxBackdrop');
   const img = document.getElementById('lightboxImg');
+  const vid = document.getElementById('lightboxVideo');
 
   // Click outside closes (most clicks should hit backdrop because content has pointer-events:none)
   if (backdrop) backdrop.addEventListener('click', closeLightbox);
   if (img) img.addEventListener('click', (e) => e.stopPropagation());
+  if (vid) vid.addEventListener('click', (e) => e.stopPropagation());
 
   const btnPrev = document.getElementById('lbPrev');
   const btnNext = document.getElementById('lbNext');
