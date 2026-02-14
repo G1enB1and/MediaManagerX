@@ -61,7 +61,7 @@ function resetPosterState() {
 }
 
 let gLoadingShownAt = 0;
-const MIN_LOADING_MS = 300;
+const MIN_LOADING_MS = 1000;
 
 function setGlobalLoading(on, text = 'Loading…', pct = null) {
   const gl = document.getElementById('globalLoading');
@@ -174,16 +174,19 @@ const PAGE_SIZE = 100;
 let gPosterObserver = null;
 const gPosterRequested = new Set();
 
+let gLightboxNativeVideo = false;
+
 function openLightboxByIndex(idx) {
   const lb = document.getElementById('lightbox');
   const img = document.getElementById('lightboxImg');
   const vid = document.getElementById('lightboxVideo');
   if (!lb || !img || !vid) return;
 
-  // If we were playing a native overlay video, stop it before switching items.
-  if (gBridge && gBridge.close_native_video) {
+  // Stop native overlay ONLY if it was previously opened for a video.
+  if (gLightboxNativeVideo && gBridge && gBridge.close_native_video) {
     gBridge.close_native_video(function () {});
   }
+  gLightboxNativeVideo = false;
 
   if (!gMedia || gMedia.length === 0) return;
   if (idx < 0) idx = 0;
@@ -210,6 +213,7 @@ function openLightboxByIndex(idx) {
     document.body.style.overflow = 'hidden';
 
     if (gBridge && gBridge.open_native_video && item.path) {
+      gLightboxNativeVideo = true;
       gBridge.get_video_duration_seconds(item.path, function (dur) {
         const seconds = Number(dur || 0);
         const short = seconds > 0 && seconds < 60;

@@ -457,7 +457,9 @@ class MainWindow(QMainWindow):
 
         index_path = Path(__file__).with_name("web") / "index.html"
 
-        # Web loading signals
+        # Web loading signals (with minimum on-screen time to avoid flashing)
+        self._web_loading_shown_ms: int | None = None
+        self._web_loading_min_ms = 1000
         self.web.loadStarted.connect(lambda: self._set_web_loading(True))
         self.web.loadProgress.connect(self._on_web_load_progress)
         self.web.loadFinished.connect(lambda _ok: self._set_web_loading(False))
@@ -520,11 +522,25 @@ class MainWindow(QMainWindow):
 
     def _set_web_loading(self, on: bool) -> None:
         try:
-            self.web_loading.setVisible(bool(on))
-            self.web_loading.raise_()
-            # Keep video overlay above when active.
-            if self.video_overlay.isVisible():
-                self.video_overlay.raise_()
+            if on:
+                self._web_loading_shown_ms = int(__import__("time").time() * 1000)
+                self.web_loading.setVisible(True)
+                self.web_loading.raise_()
+                if self.video_overlay.isVisible():
+                    self.video_overlay.raise_()
+                return
+
+            # off: enforce minimum display time to avoid flashing
+            now = int(__import__("time").time() * 1000)
+            shown = self._web_loading_shown_ms or now
+            remaining = self._web_loading_min_ms - (now - shown)
+            if remaining > 0:
+                from PySide6.QtCore import QTimer
+
+                QTimer.singleShot(int(remaining), lambda: self._set_web_loading(False))
+                return
+
+            self.web_loading.setVisible(False)
         except Exception:
             pass
 

@@ -329,12 +329,15 @@ class LightboxVideoOverlay(QWidget):
         self._show_controls()
 
     def close_overlay(self) -> None:
+        was_visible = self.isVisible()
         try:
             self.player.stop()
         except Exception:
             pass
         self.setVisible(False)
-        if callable(self.on_close):
+        # Only notify the web layer if we were actually open; avoids closing
+        # image lightboxes when we "stop video" during navigation.
+        if was_visible and callable(self.on_close):
             try:
                 self.on_close()
             except Exception:
