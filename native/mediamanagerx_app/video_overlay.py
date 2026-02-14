@@ -106,14 +106,17 @@ class LightboxVideoOverlay(QWidget):
 
         # Controls overlay as sibling above video_view
         self.controls = QWidget(self)
+        # Glassy dark control bar
         self.controls.setStyleSheet(
-            "background: rgba(255,255,255,230); border: 1px solid rgba(0,0,0,60); border-radius: 12px;"
+            "background: rgba(20,20,26,190);"
+            "border: 1px solid rgba(255,255,255,30);"
+            "border-radius: 14px;"
         )
         self.controls.setVisible(False)
 
         self.btn_play = QPushButton("⏵", self.controls)
         self.btn_pause = QPushButton("⏸", self.controls)
-        self.btn_mute = QPushButton("🔇", self.controls)
+        self.btn_mute = QPushButton("🔊", self.controls)
         self.lbl_time = QLabel("0:00 / 0:00", self.controls)
         self.lbl_dbg = QLabel("", self.controls)
         self.slider = QSlider(Qt.Orientation.Horizontal, self.controls)
@@ -128,13 +131,34 @@ class LightboxVideoOverlay(QWidget):
         self.slider.setSingleStep(1000)
         self.slider.setPageStep(5000)
 
+        btn_css = (
+            "QPushButton {"
+            " color: rgba(255,255,255,230);"
+            " background: transparent;"
+            " border: none;"
+            " padding: 6px 10px;"
+            " font-size: 16px;"
+            " }"
+            "QPushButton:hover {"
+            " background: rgba(255,255,255,22);"
+            " border-radius: 10px;"
+            " }"
+        )
         for b in (self.btn_play, self.btn_pause, self.btn_mute, self.btn_close):
-            b.setStyleSheet(
-                "color: rgba(0,0,0,230); background: transparent; border: none; padding: 6px 10px; font-size: 16px;"
-            )
-        self.lbl_time.setStyleSheet("color: rgba(0,0,0,180); font-size: 12px;")
-        self.lbl_dbg.setStyleSheet("color: rgba(160,0,0,220); font-size: 11px;")
-        self.slider.setStyleSheet("min-width: 260px;")
+            b.setStyleSheet(btn_css)
+
+        self.lbl_time.setStyleSheet("color: rgba(255,255,255,170); font-size: 12px;")
+        # Debug label hidden by default
+        self.lbl_dbg.setStyleSheet("color: rgba(255,80,80,220); font-size: 11px;")
+        self.lbl_dbg.setVisible(False)
+
+        self.slider.setStyleSheet(
+            "QSlider::groove:horizontal { height: 4px; background: rgba(255,255,255,28); border-radius: 2px; }"
+            "QSlider::sub-page:horizontal { background: rgba(138,180,248,200); border-radius: 2px; }"
+            "QSlider::add-page:horizontal { background: rgba(255,255,255,20); border-radius: 2px; }"
+            "QSlider::handle:horizontal { width: 10px; margin: -5px 0; border-radius: 5px; background: rgba(255,255,255,200); }"
+            "min-width: 320px;"
+        )
 
         self.btn_play.clicked.connect(self.player.play)
         self.btn_pause.clicked.connect(self.player.pause)
@@ -170,7 +194,7 @@ class LightboxVideoOverlay(QWidget):
         # Auto-hide controls (we'll keep them visible longer; some Windows video
         # surfaces don't reliably emit mouse move events)
         self._hide_timer = QTimer(self)
-        self._hide_timer.setInterval(6000)
+        self._hide_timer.setInterval(4000)
         self._hide_timer.setSingleShot(True)
         self._hide_timer.timeout.connect(self._hide_controls)
 
