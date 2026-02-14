@@ -434,6 +434,7 @@ function wireSettings() {
 
   const startInput = document.getElementById('startFolder');
   const restoreToggle = document.getElementById('toggleRestoreLast');
+  const hideDotToggle = document.getElementById('toggleHideDot');
 
   if (browse) {
     browse.addEventListener('click', () => {
@@ -459,6 +460,16 @@ function wireSettings() {
     restoreToggle.addEventListener('change', () => {
       if (!gBridge || !gBridge.set_setting_bool) return;
       gBridge.set_setting_bool('gallery.restore_last', !!restoreToggle.checked, function () {});
+    });
+  }
+
+  if (hideDotToggle) {
+    hideDotToggle.addEventListener('change', () => {
+      if (!gBridge || !gBridge.set_setting_bool) return;
+      gBridge.set_setting_bool('gallery.hide_dot', !!hideDotToggle.checked, function () {
+        gPage = 0;
+        refreshFromBridge(gBridge);
+      });
     });
   }
 
@@ -511,6 +522,9 @@ async function main() {
 
       const r = document.getElementById('toggleRestoreLast');
       if (r) r.checked = !!(s && s['gallery.restore_last']);
+
+      const hd = document.getElementById('toggleHideDot');
+      if (hd) hd.checked = !!(s && s['gallery.hide_dot']);
 
       const sf = document.getElementById('startFolder');
       if (sf) sf.value = (s && s['gallery.start_folder']) || '';

@@ -137,6 +137,12 @@ class Bridge(QObject):
         except Exception:
             return False
 
+    def _hide_dot_enabled(self) -> bool:
+        try:
+            return bool(self.settings.value("gallery/hide_dot", True, type=bool))
+        except Exception:
+            return True
+
     def _start_folder_setting(self) -> str:
         try:
             return str(self.settings.value("gallery/start_folder", "", type=str) or "")
@@ -168,8 +174,16 @@ class Bridge(QObject):
         for p in root.rglob("*"):
             if not p.is_file():
                 continue
-            if p.suffix.lower() in exts:
-                candidates.append(p)
+            if p.suffix.lower() not in exts:
+                continue
+
+            if self._hide_dot_enabled():
+                # Skip any file under a dot-prefixed directory, or dot files.
+                rel_parts = p.relative_to(root).parts
+                if any(part.startswith(".") for part in rel_parts):
+                    continue
+
+            candidates.append(p)
 
         candidates.sort(key=lambda p: str(p).lower())
 
@@ -264,24 +278,26 @@ class Bridge(QObject):
             return {
                 "gallery.randomize": self._randomize_enabled(),
                 "gallery.restore_last": self._restore_last_enabled(),
+                "gallery.hide_dot": self._hide_dot_enabled(),
                 "gallery.start_folder": self._start_folder_setting(),
             }
         except Exception:
             return {
                 "gallery.randomize": False,
                 "gallery.restore_last": False,
+                "gallery.hide_dot": True,
                 "gallery.start_folder": "",
             }
 
     @Slot(str, bool, result=bool)
     def set_setting_bool(self, key: str, value: bool) -> bool:
         try:
-            if key not in ("gallery.randomize", "gallery.restore_last"):
+            if key not in ("gallery.randomize", "gallery.restore_last", "gallery.hide_dot"):
                 return False
             qkey = key.replace(".", "/")
             self.settings.setValue(qkey, bool(value))
-            # Any setting that impacts ordering should invalidate cache.
-            if key == "gallery.randomize":
+            # Any setting that impacts list results/order should invalidate cache.
+            if key in ("gallery.randomize", "gallery.hide_dot"):
                 self._media_cache.clear()
             return True
         except Exception:
