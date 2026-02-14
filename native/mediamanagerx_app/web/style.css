@@ -18,6 +18,9 @@ body {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
+/* Prevent a white flash while the page/app initializes */
+html { background: var(--bg); }
+
 #app {
   height: 100%;
   display: flex;
@@ -45,6 +48,61 @@ header {
 
 main {
   padding: 16px;
+}
+
+.loading {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 5000;
+  pointer-events: none;
+}
+
+.loading-card {
+  pointer-events: none;
+  width: min(520px, calc(100vw - 40px));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(23, 26, 33, 0.95);
+  padding: 16px;
+}
+
+.loading-text {
+  color: var(--fg);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: rgba(138, 180, 248, 0.95);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bar {
+  margin-top: 10px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  width: 0%;
+  background: rgba(138, 180, 248, 0.95);
+  border-radius: 999px;
+  transition: width 140ms linear;
 }
 
 .toolbar {
@@ -164,6 +222,24 @@ p {
   object-fit: contain;
   display: block;
   background: #0b0d12;
+}
+
+.skel {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,0.02);
+}
+
+.skel::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.12);
+  border-top-color: rgba(138, 180, 248, 0.85);
+  animation: spin 1s linear infinite;
 }
 
 .thumb.poster {

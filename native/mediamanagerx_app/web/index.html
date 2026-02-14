@@ -15,11 +15,6 @@
 
       <main>
         <div class="pane">
-          <h2>Gallery (WebEngine scaffold)</h2>
-          <p>
-            This is the embedded web UI. Next: render real thumbnails + masonry and
-            wire folder scope via Qt ↔ JS bridge.
-          </p>
           <div class="kv">
             <div class="k">Selected folder</div>
             <div class="v" id="selectedFolder">(none)</div>
@@ -40,6 +35,14 @@
               <button class="tb-btn" data-prev>Prev</button>
               <div class="tb-links" data-links></div>
               <button class="tb-btn" data-next>Next</button>
+            </div>
+          </div>
+
+          <div class="loading" id="globalLoading" hidden>
+            <div class="loading-card">
+              <div class="spinner" aria-hidden="true"></div>
+              <div class="loading-text" id="loadingText">Loading…</div>
+              <div class="bar"><div class="bar-fill" id="loadingBar"></div></div>
             </div>
           </div>
 

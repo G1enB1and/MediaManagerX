@@ -60,6 +60,23 @@ function resetPosterState() {
   }
 }
 
+function setGlobalLoading(on, text = 'Loading…', pct = null) {
+  const gl = document.getElementById('globalLoading');
+  const t = document.getElementById('loadingText');
+  const b = document.getElementById('loadingBar');
+  if (!gl || !t || !b) return;
+
+  gl.hidden = !on;
+  t.textContent = text;
+
+  if (pct == null) {
+    b.style.width = '0%';
+  } else {
+    const clamped = Math.max(0, Math.min(100, pct));
+    b.style.width = `${clamped}%`;
+  }
+}
+
 function renderMediaList(items) {
   const el = document.getElementById('mediaList');
   if (!el) return;
@@ -84,11 +101,17 @@ function renderMediaList(items) {
     card.tabIndex = 0;
 
     if (item.media_type === 'image') {
+      const sk = document.createElement('div');
+      sk.className = 'skel';
+      card.appendChild(sk);
+
       const img = document.createElement('img');
       img.className = 'thumb';
       img.loading = 'lazy';
       img.src = item.url;
       img.alt = '';
+      img.addEventListener('load', () => sk.remove());
+      img.addEventListener('error', () => sk.remove());
       card.appendChild(img);
 
       card.addEventListener('click', () => openLightboxByIndex(idx));
@@ -96,11 +119,16 @@ function renderMediaList(items) {
         if (e.key === 'Enter' || e.key === ' ') openLightboxByIndex(idx);
       });
     } else {
+      const sk = document.createElement('div');
+      sk.className = 'skel';
+      card.appendChild(sk);
       // Video tile: lazy poster load only when near viewport.
       const img = document.createElement('img');
       img.className = 'thumb poster';
       img.alt = '';
       img.setAttribute('data-video-path', item.path || '');
+      img.addEventListener('load', () => sk.remove());
+      img.addEventListener('error', () => sk.remove());
       card.appendChild(img);
 
       const badge = document.createElement('div');
@@ -316,19 +344,25 @@ function refreshFromBridge(bridge) {
     setSelectedFolder(folder);
     if (!folder) {
       gTotal = 0;
+      setGlobalLoading(false);
       renderMediaList([]);
       renderPager();
       return;
     }
+
+    setGlobalLoading(true, 'Scanning media…', 15);
 
     bridge.count_media(folder, function (count) {
       gTotal = count || 0;
       const tp = totalPages();
       if (gPage >= tp) gPage = tp - 1;
 
+      setGlobalLoading(true, `Loading page ${gPage + 1} of ${tp}…`, 55);
+
       bridge.list_media(folder, PAGE_SIZE, gPage * PAGE_SIZE, function (items) {
         renderMediaList(items);
         renderPager();
+        setGlobalLoading(false);
       });
     });
   });
