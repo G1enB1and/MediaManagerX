@@ -15,6 +15,8 @@ function renderMediaList(items) {
   if (!el) return;
 
   el.innerHTML = '';
+  gMedia = Array.isArray(items) ? items : [];
+
   if (!items || items.length === 0) {
     const div = document.createElement('div');
     div.className = 'empty';
@@ -23,7 +25,7 @@ function renderMediaList(items) {
     return;
   }
 
-  for (const item of items) {
+  items.forEach((item, idx) => {
     const card = document.createElement('div');
     card.className = 'card';
     card.tabIndex = 0;
@@ -36,9 +38,9 @@ function renderMediaList(items) {
       img.alt = '';
       card.appendChild(img);
 
-      card.addEventListener('click', () => openLightbox(item.url));
+      card.addEventListener('click', () => openLightboxByIndex(idx));
       card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') openLightbox(item.url);
+        if (e.key === 'Enter' || e.key === ' ') openLightboxByIndex(idx);
       });
     } else {
       const ph = document.createElement('div');
@@ -48,15 +50,27 @@ function renderMediaList(items) {
     }
 
     el.appendChild(card);
-  }
+  });
 }
 
-function openLightbox(url) {
+let gMedia = [];
+let gIndex = -1;
+
+function openLightboxByIndex(idx) {
   const lb = document.getElementById('lightbox');
   const img = document.getElementById('lightboxImg');
   if (!lb || !img) return;
-  img.src = url;
+
+  if (!gMedia || gMedia.length === 0) return;
+  if (idx < 0) idx = 0;
+  if (idx >= gMedia.length) idx = gMedia.length - 1;
+
+  gIndex = idx;
+  img.src = gMedia[gIndex].url;
   lb.hidden = false;
+
+  // prevent background scroll while open
+  document.body.style.overflow = 'hidden';
 }
 
 function closeLightbox() {
@@ -65,13 +79,36 @@ function closeLightbox() {
   if (!lb || !img) return;
   lb.hidden = true;
   img.src = '';
+  gIndex = -1;
+  document.body.style.overflow = '';
+}
+
+function lightboxPrev() {
+  if (gIndex <= 0) return;
+  openLightboxByIndex(gIndex - 1);
+}
+
+function lightboxNext() {
+  if (gMedia && gIndex >= 0 && gIndex < gMedia.length - 1) {
+    openLightboxByIndex(gIndex + 1);
+  }
 }
 
 function wireLightbox() {
   const backdrop = document.getElementById('lightboxBackdrop');
   if (backdrop) backdrop.addEventListener('click', closeLightbox);
+
+  const btnPrev = document.getElementById('lbPrev');
+  const btnNext = document.getElementById('lbNext');
+  const btnClose = document.getElementById('lbClose');
+  if (btnPrev) btnPrev.addEventListener('click', lightboxPrev);
+  if (btnNext) btnNext.addEventListener('click', lightboxNext);
+  if (btnClose) btnClose.addEventListener('click', closeLightbox);
+
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'ArrowLeft') lightboxPrev();
+    if (e.key === 'ArrowRight') lightboxNext();
   });
 }
 

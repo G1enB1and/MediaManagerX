@@ -127,6 +127,43 @@ p {
   background: rgba(0, 0, 0, 0.75);
 }
 
+.lightbox-ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lb-btn {
+  pointer-events: auto;
+  position: absolute;
+  top: 16px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(20, 20, 25, 0.65);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 18px;
+}
+
+#lbPrev {
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+#lbNext {
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.lb-close {
+  right: 16px;
+  top: 16px;
+  transform: none;
+}
+
 .lightbox-content {
   position: absolute;
   inset: 20px;
