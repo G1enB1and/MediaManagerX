@@ -94,20 +94,23 @@ function setGlobalLoading(on, text = 'Loading…', pct = null) {
 
 let gCtxItem = null;
 let gCtxIndex = -1;
+let gCtxFromLightbox = false;
 
 function hideCtx() {
   const ctx = document.getElementById('ctx');
   if (ctx) ctx.hidden = true;
   gCtxItem = null;
   gCtxIndex = -1;
+  gCtxFromLightbox = false;
 }
 
-function showCtx(x, y, item, idx) {
+function showCtx(x, y, item, idx, fromLightbox = false) {
   const ctx = document.getElementById('ctx');
   if (!ctx) return;
 
   gCtxItem = item;
   gCtxIndex = idx;
+  gCtxFromLightbox = !!fromLightbox;
 
   const hideBtn = document.getElementById('ctxHide');
   const unhideBtn = document.getElementById('ctxUnhide');
@@ -151,8 +154,11 @@ function wireCtxMenu() {
       const item = gCtxItem;
       hideCtx();
       if (!item || !item.path || !gBridge || !gBridge.hide_by_renaming_dot) return;
+      setGlobalLoading(true, 'Hiding…', 25);
       gBridge.hide_by_renaming_dot(item.path, function (newPath) {
-        if (!newPath) return;
+        if (gCtxFromLightbox) {
+          closeLightbox();
+        }
         refreshFromBridge(gBridge);
       });
     });
@@ -163,8 +169,11 @@ function wireCtxMenu() {
       const item = gCtxItem;
       hideCtx();
       if (!item || !item.path || !gBridge || !gBridge.unhide_by_renaming_dot) return;
+      setGlobalLoading(true, 'Unhiding…', 25);
       gBridge.unhide_by_renaming_dot(item.path, function () {
-        // easiest: refresh
+        if (gCtxFromLightbox) {
+          closeLightbox();
+        }
         refreshFromBridge(gBridge);
       });
     });
@@ -231,7 +240,7 @@ function renderMediaList(items) {
 
       card.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        showCtx(e.clientX, e.clientY, item, idx);
+        showCtx(e.clientX, e.clientY, item, idx, false);
       });
     } else {
       const sk = document.createElement('div');
@@ -260,7 +269,7 @@ function renderMediaList(items) {
 
       card.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        showCtx(e.clientX, e.clientY, item, idx);
+        showCtx(e.clientX, e.clientY, item, idx, false);
       });
     }
 
@@ -402,7 +411,7 @@ function wireLightbox() {
     if (!gMedia || gIndex < 0 || gIndex >= gMedia.length) return;
     e.preventDefault();
     e.stopPropagation();
-    showCtx(e.clientX, e.clientY, gMedia[gIndex], gIndex);
+    showCtx(e.clientX, e.clientY, gMedia[gIndex], gIndex, true);
   };
 
   if (lb) lb.addEventListener('contextmenu', handler, true);
