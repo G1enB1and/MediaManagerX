@@ -145,13 +145,26 @@ function openLightboxByIndex(idx) {
 
   const item = gMedia[gIndex];
   if (item.media_type === 'video') {
-    // Use native QtMultimedia player (WebEngine codec support is unreliable).
+    // Open web lightbox chrome, but delegate actual video rendering to native overlay.
+    // (QtWebEngine codec support is unreliable on Windows.)
+    const lb = document.getElementById('lightbox');
+    const imgEl = document.getElementById('lightboxImg');
+    const vidEl = document.getElementById('lightboxVideo');
+    if (lb) lb.hidden = false;
+    if (imgEl) {
+      imgEl.style.display = 'none';
+      imgEl.src = '';
+    }
+    if (vidEl) {
+      vidEl.style.display = 'none';
+      vidEl.src = '';
+    }
+    document.body.style.overflow = 'hidden';
+
     if (gBridge && gBridge.open_native_video && item.path) {
       gBridge.get_video_duration_seconds(item.path, function (dur) {
         const seconds = Number(dur || 0);
         const short = seconds > 0 && seconds < 60;
-
-        // Policy: short => autoplay+loop muted; long => paused, user plays (unmuted)
         gBridge.open_native_video(item.path, short, short, short);
       });
     }
@@ -183,6 +196,10 @@ function closeLightbox() {
   vid.pause();
   vid.src = '';
   vid.style.display = 'none';
+
+  if (gBridge && gBridge.close_native_video) {
+    gBridge.close_native_video(function () {});
+  }
 
   gIndex = -1;
   document.body.style.overflow = '';

@@ -26,13 +26,13 @@ from PySide6.QtWidgets import (
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage
-from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
-from PySide6.QtMultimediaWidgets import QVideoWidget
+from native.mediamanagerx_app.video_overlay import LightboxVideoOverlay, VideoRequest
 
 
 class Bridge(QObject):
     selectedFolderChanged = Signal(str)
     openVideoRequested = Signal(str, bool, bool, bool)
+    closeVideoRequested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -241,14 +241,18 @@ class Bridge(QObject):
 
     @Slot(str, bool, bool, bool, result=bool)
     def open_native_video(self, video_path: str, autoplay: bool, loop: bool, muted: bool) -> bool:
-        """Ask the native layer to open a video player.
-
-        We use QtMultimedia for playback because QtWebEngine video codec support
-        can be limited on Windows builds.
-        """
+        """Ask the native layer to open a video player."""
 
         try:
             self.openVideoRequested.emit(str(video_path), bool(autoplay), bool(loop), bool(muted))
+            return True
+        except Exception:
+            return False
+
+    @Slot(result=bool)
+    def close_native_video(self) -> bool:
+        try:
+            self.closeVideoRequested.emit()
             return True
         except Exception:
             return False
@@ -285,67 +289,6 @@ class Bridge(QObject):
             return []
 
 
-class VideoPlayerDialog(QDialog):
-    def __init__(self, *, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setWindowTitle("Video")
-        self.resize(1100, 700)
-
-        self.player = QMediaPlayer(self)
-        self.audio = QAudioOutput(self)
-        self.player.setAudioOutput(self.audio)
-
-        self.video_widget = QVideoWidget(self)
-        self.player.setVideoOutput(self.video_widget)
-
-        self.btn_play = QPushButton("Play")
-        self.btn_pause = QPushButton("Pause")
-        self.btn_close = QPushButton("Close")
-
-        self.btn_play.clicked.connect(self.player.play)
-        self.btn_pause.clicked.connect(self.player.pause)
-        self.btn_close.clicked.connect(self.close)
-
-        controls = QHBoxLayout()
-        controls.addWidget(self.btn_play)
-        controls.addWidget(self.btn_pause)
-        controls.addStretch(1)
-        controls.addWidget(self.btn_close)
-
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.video_widget, 1)
-        layout.addLayout(controls)
-
-    def open_video(self, *, path: str, autoplay: bool, loop: bool, muted: bool) -> None:
-        self.setWindowTitle(f"Video — {Path(path).name}")
-        self.audio.setMuted(bool(muted))
-
-        # Looping support varies by Qt version.
-        if hasattr(self.player, "setLoops"):
-            try:
-                # -1 is often treated as infinite; if not, fall back below.
-                self.player.setLoops(-1 if loop else 1)  # type: ignore[attr-defined]
-            except Exception:
-                pass
-
-        self.player.setSource(QUrl.fromLocalFile(path))
-        self.show()
-        self.raise_()
-        self.activateWindow()
-
-        if autoplay:
-            self.player.play()
-        else:
-            self.player.pause()
-
-    def closeEvent(self, event) -> None:  # type: ignore[override]
-        try:
-            self.player.stop()
-        except Exception:
-            pass
-        super().closeEvent(event)
-
-
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
@@ -353,9 +296,8 @@ class MainWindow(QMainWindow):
         self.resize(1200, 800)
 
         self.bridge = Bridge()
-        self.bridge.openVideoRequested.connect(self._open_video_dialog)
-
-        self._video_dialog: VideoPlayerDialog | None = None
+        self.bridge.openVideoRequested.connect(self._open_video_overlay)
+        self.bridge.closeVideoRequested.connect(self._close_video_overlay)
 
         self._build_menu()
         self._build_layout()
@@ -431,6 +373,9 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(self.web)
 
         self._devtools: QWebEngineView | None = None
+        self.video_overlay = LightboxVideoOverlay(parent=self.web)
+        self.video_overlay.setGeometry(self.web.rect())
+        self.video_overlay.raise_()
 
         channel = QWebChannel(self.web.page())
         channel.registerObject("bridge", self.bridge)
@@ -466,10 +411,14 @@ class MainWindow(QMainWindow):
             self.tree.setCurrentIndex(self.fs_model.index(folder_path))
             self._set_selected_folder(folder_path)
 
-    def _open_video_dialog(self, path: str, autoplay: bool, loop: bool, muted: bool) -> None:
-        if self._video_dialog is None:
-            self._video_dialog = VideoPlayerDialog(parent=self)
-        self._video_dialog.open_video(path=path, autoplay=autoplay, loop=loop, muted=muted)
+    def _open_video_overlay(self, path: str, autoplay: bool, loop: bool, muted: bool) -> None:
+        self.video_overlay.setGeometry(self.web.rect())
+        self.video_overlay.open_video(
+            VideoRequest(path=path, autoplay=autoplay, loop=loop, muted=muted)
+        )
+
+    def _close_video_overlay(self) -> None:
+        self.video_overlay.close_overlay()
 
     def toggle_devtools(self) -> None:
         if self._devtools is None:
@@ -481,6 +430,13 @@ class MainWindow(QMainWindow):
         else:
             self._devtools.close()
             self._devtools = None
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        # Keep overlay pinned to the web view.
+        if hasattr(self, "video_overlay") and self.video_overlay.isVisible():
+            self.video_overlay.setGeometry(self.web.rect())
+            self.video_overlay.raise_()
 
     def about(self) -> None:
         QMessageBox.information(
