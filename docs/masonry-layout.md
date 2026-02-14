@@ -43,8 +43,9 @@ Greedy “shortest column” assignment:
 4. `total_height = max(col_heights) - gutter` (or 0 if no items)
 
 ## Notes / future work
-- Column count selection policy (responsive): choose `columns` from container width
-  and a preferred min column width.
+- Column count selection policy (responsive): helper added in
+  `app/mediamanager/layout/columns.py` (`choose_columns`). UI may still apply
+  explicit breakpoints.
 - Stabilization: maintain consistent ordering; keep stable tie-breaks.
 - Reconciliation: if an item’s decoded aspect ratio differs from estimate, adjust
   that column below the item; avoid global reflow.
