@@ -5,8 +5,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QEvent, QTimer, Qt, QUrl
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
-from PySide6.QtMultimediaWidgets import QVideoWidget
+from PySide6.QtGui import QImage, QPainter
+from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer, QVideoSink
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -25,6 +25,41 @@ class VideoRequest:
     autoplay: bool
     loop: bool
     muted: bool
+
+
+class VideoFrameWidget(QWidget):
+    """Paints video frames from a QVideoSink.
+
+    This avoids QVideoWidget native-surface stacking issues on Windows.
+    """
+
+    def __init__(self, *, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setMouseTracking(True)
+        self._img: QImage | None = None
+
+    def set_image(self, img: QImage | None) -> None:
+        self._img = img
+        self.update()
+
+    def paintEvent(self, event) -> None:  # type: ignore[override]
+        p = QPainter(self)
+        p.fillRect(self.rect(), Qt.GlobalColor.black)
+
+        if not self._img or self._img.isNull():
+            return
+
+        # Fit while preserving aspect ratio.
+        target = self.rect()
+        src = self._img.size()
+        scaled = src.scaled(target.size(), Qt.AspectRatioMode.KeepAspectRatio)
+        x = (target.width() - scaled.width()) // 2
+        y = (target.height() - scaled.height()) // 2
+        p.drawImage(
+            x,
+            y,
+            self._img.scaled(scaled, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation),
+        )
 
 
 class LightboxVideoOverlay(QWidget):
@@ -59,17 +94,18 @@ class LightboxVideoOverlay(QWidget):
         self.backdrop = QFrame(self)
         self.backdrop.setStyleSheet("background: rgba(0,0,0,190);")
 
-        self.video_widget = QVideoWidget(self)
-        self.video_widget.setStyleSheet("background: black;")
-        self.video_widget.setMouseTracking(True)
-        self.video_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        # Use QVideoSink + custom painter to avoid QVideoWidget stacking/input
+        # issues on Windows (where controls may never appear).
+        self.video_sink = QVideoSink(self)
+        self.video_sink.videoFrameChanged.connect(self._on_frame)
+        self.player.setVideoOutput(self.video_sink)
 
-        self.player.setVideoOutput(self.video_widget)
+        self.video_view = VideoFrameWidget(parent=self)
+        self.video_view.setMouseTracking(True)
+        self.video_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-        # Controls overlay (true-ish media controls; styled later)
-        # Important: make controls a CHILD of video_widget so they stack above
-        # the video even when QVideoWidget is a native surface on Windows.
-        self.controls = QWidget(self.video_widget)
+        # Controls overlay as sibling above video_view
+        self.controls = QWidget(self)
         self.controls.setStyleSheet(
             "background: rgba(255,255,255,230); border: 1px solid rgba(0,0,0,60); border-radius: 12px;"
         )
@@ -121,11 +157,11 @@ class LightboxVideoOverlay(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self.backdrop, 1)
-        layout.addWidget(self.video_widget, 0)
+        layout.addWidget(self.video_view, 0)
 
         # Put the video surface above the backdrop using stacking
         self.backdrop.lower()
-        self.video_widget.raise_()
+        self.video_view.raise_()
         self.controls.raise_()
 
         # Track seek state
@@ -146,7 +182,7 @@ class LightboxVideoOverlay(QWidget):
         self.backdrop.installEventFilter(self)
 
         # Show controls when mouse moves over the video surface
-        self.video_widget.installEventFilter(self)
+        self.video_view.installEventFilter(self)
         self.controls.installEventFilter(self)
 
         # ESC closes reliably
@@ -190,17 +226,17 @@ class LightboxVideoOverlay(QWidget):
         # Fit video in viewport with padding (like the web lightbox)
         pad = 20
         r = self.rect().adjusted(pad, pad, -pad, -pad)
-        self.video_widget.setGeometry(r)
+        self.video_view.setGeometry(r)
 
-        # Controls bottom overlay (centered) — coordinates relative to video_widget
+        # Controls bottom overlay (centered) — coordinates relative to overlay
         self.controls.adjustSize()
-        x = (self.video_widget.width() // 2) - (self.controls.width() // 2)
-        y = self.video_widget.height() - self.controls.height() - 12
-        self.controls.move(max(12, x), max(12, y))
+        x = r.center().x() - (self.controls.width() // 2)
+        y = r.bottom() - self.controls.height() - 12
+        self.controls.move(max(r.left() + 12, x), max(r.top() + 12, y))
 
         # Keep stacking order consistent
         self.backdrop.lower()
-        self.video_widget.raise_()
+        self.video_view.raise_()
         self.controls.raise_()
 
     def open_video(self, req: VideoRequest) -> None:
@@ -220,7 +256,7 @@ class LightboxVideoOverlay(QWidget):
         self.raise_()
         self.activateWindow()
         self.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
-        self.video_widget.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+        self.video_view.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
 
         # Force controls visible on open; auto-hide after a while.
         self._show_controls()
@@ -244,6 +280,13 @@ class LightboxVideoOverlay(QWidget):
                 self.on_close()
             except Exception:
                 pass
+
+    def _on_frame(self, frame) -> None:
+        try:
+            img = frame.toImage()  # type: ignore[attr-defined]
+            self.video_view.set_image(img)
+        except Exception:
+            self.video_view.set_image(None)
 
     def _on_media_status(self, status) -> None:
         # Fallback looping if setLoops isn't available.
