@@ -1,24 +1,46 @@
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Iterable, Tuple, List
 
 from app.mediamanager.utils.pathing import normalize_windows_path
 
 
-def build_scope_where_clause(selected_roots: Iterable[str]) -> str:
-    """Build SQL WHERE predicate for selected folder roots.
+def normalize_roots(selected_roots: Iterable[str]) -> list[str]:
+    return sorted({normalize_windows_path(r).rstrip("/") for r in selected_roots if r.strip()})
 
-    Returns a predicate that matches any media path equal to or under
-    one of the selected roots. If no roots are selected, returns "0"
-    (always false) for empty gallery behavior.
+
+def build_scope_where(selected_roots: Iterable[str]) -> Tuple[str, List[str]]:
+    """Build a parameterized SQL WHERE predicate for selected folder roots.
+
+    Returns (predicate_sql, params).
+
+    Behavior:
+    - Empty selection -> ("0", []) (always false)
+    - Each root contributes: (path = ? OR path LIKE ?)
+      with params [root, f"{root}/%"]
+
+    NOTE: This is intended for sqlite3 parameter substitution.
     """
-    roots = sorted({normalize_windows_path(r).rstrip("/") for r in selected_roots if r.strip()})
+    roots = normalize_roots(selected_roots)
     if not roots:
-        return "0"
+        return "0", []
 
     parts: list[str] = []
+    params: list[str] = []
     for root in roots:
-        escaped = root.replace("'", "''")
-        parts.append(f"(path = '{escaped}' OR path LIKE '{escaped}/%')")
+        parts.append("(path = ? OR path LIKE ?)")
+        params.extend([root, f"{root}/%"])
 
-    return " OR ".join(parts)
+    return " OR ".join(parts), params
+
+
+# Back-compat for earlier callers/tests
+def build_scope_where_clause(selected_roots: Iterable[str]) -> str:
+    sql, params = build_scope_where(selected_roots)
+    # For debug only: interpolate for readability.
+    if sql == "0":
+        return sql
+    out = sql
+    for p in params:
+        out = out.replace("?", f"'{p.replace("'", "''")}'", 1)
+    return out

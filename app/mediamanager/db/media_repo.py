@@ -4,7 +4,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import List
 
-from app.mediamanager.db.scope_query import build_scope_where_clause
+from app.mediamanager.db.scope_query import build_scope_where
 from app.mediamanager.utils.pathing import normalize_windows_path
 
 
@@ -33,8 +33,9 @@ def add_media_item(conn: sqlite3.Connection, path: str, media_type: str) -> int:
 
 
 def list_media_in_scope(conn: sqlite3.Connection, selected_roots: list[str]) -> List[dict]:
-    where_clause = build_scope_where_clause(selected_roots)
+    where_sql, params = build_scope_where(selected_roots)
     rows = conn.execute(
-        f"SELECT id, path, media_type FROM media_items WHERE {where_clause} ORDER BY path"
+        f"SELECT id, path, media_type FROM media_items WHERE {where_sql} ORDER BY path",
+        params,
     ).fetchall()
     return [{"id": r[0], "path": r[1], "media_type": r[2]} for r in rows]

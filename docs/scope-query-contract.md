@@ -1,11 +1,11 @@
 # Scope Query Contract (Phase 1)
 
-`build_scope_where_clause(selected_roots)` generates SQL predicate text for gallery filtering.
+`build_scope_where(selected_roots)` generates a **parameterized** SQL predicate for gallery filtering.
 
 Rules:
-- Empty selection -> `0` (always false, empty gallery)
-- For each selected root `r` -> `(path = r OR path LIKE r/%)`
+- Empty selection -> `( "0", [] )` (always false, empty gallery)
+- For each selected root `r` -> `(path = ? OR path LIKE ?)` with params `[r, r + "/%"]`
 - Inputs are normalized to Windows-safe lowercase slash form
 - Duplicate roots are removed before predicate generation
 
-This keeps selection-scope logic explicit and testable before wiring DB query execution.
+A debug helper `build_scope_where_clause(...)` still exists for readable strings, but DB code should use `build_scope_where(...)`.
