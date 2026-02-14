@@ -22,9 +22,15 @@ class MediaRepository:
     def current_selection(self) -> list[str]:
         return get_selection(self.conn)
 
-    def scoped_media(self, selected_roots: list[str] | None = None) -> list[dict]:
+    def scoped_media(
+        self,
+        selected_roots: list[str] | None = None,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[dict]:
         roots = selected_roots if selected_roots is not None else self.current_selection()
-        return list_media_in_scope(self.conn, roots)
+        return list_media_in_scope(self.conn, roots, limit=limit, offset=offset)
 
     def save_metadata(self, media_id: int, title: str | None = None, description: str | None = None, notes: str | None = None) -> None:
         upsert_media_metadata(self.conn, media_id, title=title, description=description, notes=notes)

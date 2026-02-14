@@ -31,6 +31,14 @@ class TestMediaRepo(unittest.TestCase):
             scoped = list_media_in_scope(conn, [r"C:\\Media\\Cats", r"C:\\Media\\Dogs"])
             self.assertEqual([r['path'] for r in scoped], ['c:/media/cats/a.jpg', 'c:/media/dogs/b.jpg'])
 
+    def test_list_media_in_scope_supports_limit_offset(self) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            for i in range(5):
+                add_media_item(conn, fr"C:\\Media\\Cats\\{i}.jpg", 'image')
+
+            page = list_media_in_scope(conn, [r"C:\\Media\\Cats"], limit=2, offset=2)
+            self.assertEqual([r['path'] for r in page], ['c:/media/cats/2.jpg', 'c:/media/cats/3.jpg'])
+
 
 if __name__ == '__main__':
     unittest.main()

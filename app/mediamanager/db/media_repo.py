@@ -32,10 +32,25 @@ def add_media_item(conn: sqlite3.Connection, path: str, media_type: str) -> int:
     return int(row[0])
 
 
-def list_media_in_scope(conn: sqlite3.Connection, selected_roots: list[str]) -> List[dict]:
+def list_media_in_scope(
+    conn: sqlite3.Connection,
+    selected_roots: list[str],
+    *,
+    limit: int | None = None,
+    offset: int | None = None,
+) -> List[dict]:
     where_sql, params = build_scope_where(selected_roots)
-    rows = conn.execute(
-        f"SELECT id, path, media_type FROM media_items WHERE {where_sql} ORDER BY path",
-        params,
-    ).fetchall()
+
+    sql = f"SELECT id, path, media_type FROM media_items WHERE {where_sql} ORDER BY path"
+    if limit is not None:
+        sql += " LIMIT ?"
+        params = [*params, int(limit)]
+    if offset is not None:
+        # sqlite allows OFFSET without LIMIT only in recent versions; keep it simple
+        if limit is None:
+            sql += " LIMIT -1"
+        sql += " OFFSET ?"
+        params = [*params, int(offset)]
+
+    rows = conn.execute(sql, params).fetchall()
     return [{"id": r[0], "path": r[1], "media_type": r[2]} for r in rows]
