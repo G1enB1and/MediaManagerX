@@ -13,26 +13,50 @@ Phase 1: stable viewer + folder scope + persistent metadata.
 - `scripts/` — dev utilities
 - `tests/` — test suite
 
-## Quick start
+## Status
+This repo is currently **Phase 1 foundation** (DB + repository layer + tests + a tiny CLI smoke runner).
+
+There is **no GUI you can “open” yet**—that comes later when we wire in the native shell + viewer.
+
+## Quick start (no `make` required)
 ```bash
-cd MediaManager
+git clone https://github.com/G1enB1and/MediaManagerX.git
+cd MediaManagerX
+
+# optional but recommended: create a venv
+python3 -m venv .venv
+source .venv/bin/activate
+
+# install in editable mode
+pip install -e .
+
+# one command: creates/initializes the DB (default: ./data/mediamanager.db)
 python3 scripts/setup.py
 ```
 
-That single command creates a **brand-new blank database** at `./data/mediamanager.db` if one does not exist, and initializes schema v1.
-
-(Convenience alias: `make setup` runs the same setup script.)
-
-## Smoke run
+## Run (current smoke CLI)
 ```bash
-make run
+python3 app/mediamanager/main.py
+# or
+python3 -m app.mediamanager.main
 ```
-This launches the current minimal bootstrap entrypoint and confirms the local DB path + initial state.
 
-## Tests / validation
+You should see output like:
+- `MediaManager ready`
+- `DB: .../data/mediamanager.db`
+
+## If you *do* want `make`
+On Ubuntu/Debian:
 ```bash
-make test
+sudo apt update
+sudo apt install make
 ```
-Runs `scripts/dev_check.py` (unit tests + basic sanity checks). Use `python3` explicitly (this repo assumes `python3`, not `python`).
+Then these convenience targets work:
+- `make setup` → runs `python3 scripts/setup.py`
+- `make run` → runs the smoke CLI
+- `make test` → runs `python3 scripts/dev_check.py`
 
-No existing database is required.
+## Tests / validation (no `make` required)
+```bash
+python3 scripts/dev_check.py
+```
