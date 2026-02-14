@@ -424,7 +424,7 @@ function closeSettings() {
 function wireSettings() {
   const openBtn = document.getElementById('openSettings');
   const closeBtn = document.getElementById('closeSettings');
-  const reshuf = document.getElementById('reshuffle');
+  const browse = document.getElementById('browseStartFolder');
   const backdrop = document.getElementById('settingsBackdrop');
   const toggle = document.getElementById('toggleRandomize');
 
@@ -432,13 +432,33 @@ function wireSettings() {
   if (closeBtn) closeBtn.addEventListener('click', closeSettings);
   if (backdrop) backdrop.addEventListener('click', closeSettings);
 
-  if (reshuf) {
-    reshuf.addEventListener('click', () => {
-      if (!gBridge || !gBridge.reshuffle_gallery) return;
-      gBridge.reshuffle_gallery(function () {
-        gPage = 0;
-        refreshFromBridge(gBridge);
+  const startInput = document.getElementById('startFolder');
+  const restoreToggle = document.getElementById('toggleRestoreLast');
+
+  if (browse) {
+    browse.addEventListener('click', () => {
+      if (!gBridge || !gBridge.pick_folder) return;
+      gBridge.pick_folder(function (path) {
+        if (!path) return;
+        if (startInput) startInput.value = path;
+        if (gBridge.set_setting_str) {
+          gBridge.set_setting_str('gallery.start_folder', path, function () {});
+        }
       });
+    });
+  }
+
+  if (startInput) {
+    startInput.addEventListener('change', () => {
+      if (!gBridge || !gBridge.set_setting_str) return;
+      gBridge.set_setting_str('gallery.start_folder', startInput.value || '', function () {});
+    });
+  }
+
+  if (restoreToggle) {
+    restoreToggle.addEventListener('change', () => {
+      if (!gBridge || !gBridge.set_setting_bool) return;
+      gBridge.set_setting_bool('gallery.restore_last', !!restoreToggle.checked, function () {});
     });
   }
 
@@ -488,6 +508,12 @@ async function main() {
     bridge.get_settings(function (s) {
       const t = document.getElementById('toggleRandomize');
       if (t) t.checked = !!(s && s['gallery.randomize']);
+
+      const r = document.getElementById('toggleRestoreLast');
+      if (r) r.checked = !!(s && s['gallery.restore_last']);
+
+      const sf = document.getElementById('startFolder');
+      if (sf) sf.value = (s && s['gallery.start_folder']) || '';
     });
 
     // Initial sync

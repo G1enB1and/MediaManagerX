@@ -89,6 +89,35 @@ header {
   font-size: 13px;
 }
 
+.field {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+}
+
+.field-label {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.field-row {
+  display: flex;
+  gap: 8px;
+}
+
+.text {
+  flex: 1;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.2);
+  color: var(--fg);
+  padding: 0 10px;
+}
+
 .modal-actions {
   margin-top: 14px;
   display: flex;

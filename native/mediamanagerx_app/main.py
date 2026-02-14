@@ -113,6 +113,10 @@ class Bridge(QObject):
         if folder == self._selected_folder:
             return
         self._selected_folder = folder
+        try:
+            self.settings.setValue("gallery/last_folder", self._selected_folder)
+        except Exception:
+            pass
         # Simple cache invalidation: folder change => new scan.
         self._media_cache.clear()
         self.selectedFolderChanged.emit(self._selected_folder)
@@ -126,6 +130,24 @@ class Bridge(QObject):
             return bool(self.settings.value("gallery/randomize", False, type=bool))
         except Exception:
             return False
+
+    def _restore_last_enabled(self) -> bool:
+        try:
+            return bool(self.settings.value("gallery/restore_last", False, type=bool))
+        except Exception:
+            return False
+
+    def _start_folder_setting(self) -> str:
+        try:
+            return str(self.settings.value("gallery/start_folder", "", type=str) or "")
+        except Exception:
+            return ""
+
+    def _last_folder(self) -> str:
+        try:
+            return str(self.settings.value("gallery/last_folder", "", type=str) or "")
+        except Exception:
+            return ""
 
     def _scan_media_paths(self, folder: str) -> list[Path]:
         cache_key = f"{folder}|rand={int(self._randomize_enabled())}"
@@ -240,17 +262,21 @@ class Bridge(QObject):
     def get_settings(self) -> dict:
         try:
             return {
-                "gallery.randomize": bool(
-                    self.settings.value("gallery/randomize", False, type=bool)
-                )
+                "gallery.randomize": self._randomize_enabled(),
+                "gallery.restore_last": self._restore_last_enabled(),
+                "gallery.start_folder": self._start_folder_setting(),
             }
         except Exception:
-            return {"gallery.randomize": False}
+            return {
+                "gallery.randomize": False,
+                "gallery.restore_last": False,
+                "gallery.start_folder": "",
+            }
 
     @Slot(str, bool, result=bool)
     def set_setting_bool(self, key: str, value: bool) -> bool:
         try:
-            if key not in ("gallery.randomize",):
+            if key not in ("gallery.randomize", "gallery.restore_last"):
                 return False
             qkey = key.replace(".", "/")
             self.settings.setValue(qkey, bool(value))
@@ -261,16 +287,30 @@ class Bridge(QObject):
         except Exception:
             return False
 
-    @Slot(result=bool)
-    def reshuffle_gallery(self) -> bool:
-        """Generate a new session seed so the randomized order changes immediately."""
-
+    @Slot(str, str, result=bool)
+    def set_setting_str(self, key: str, value: str) -> bool:
         try:
-            self._session_shuffle_seed = random.getrandbits(32)
-            self._media_cache.clear()
+            if key not in ("gallery.start_folder",):
+                return False
+            qkey = key.replace(".", "/")
+            self.settings.setValue(qkey, str(value or ""))
             return True
         except Exception:
             return False
+
+    @Slot(result=str)
+    def pick_folder(self) -> str:
+        # UI-driven folder picker for the web settings modal.
+        try:
+            # Lazy import to avoid QtWidgets circulars.
+            from PySide6.QtWidgets import QFileDialog
+
+            folder = QFileDialog.getExistingDirectory(None, "Choose folder")
+            return str(folder) if folder else ""
+        except Exception:
+            return ""
+
+    # reshuffle_gallery removed intentionally (kept randomize-per-session without UI clutter)
 
     @Slot(str, result=float)
     def get_video_duration_seconds(self, video_path: str) -> float:
@@ -425,10 +465,33 @@ class MainWindow(QMainWindow):
 
         left_layout.addWidget(QLabel("Folders"))
 
-        default_root = Path("C:/Pictures")
-        if not default_root.exists():
-            default_root = Path.home() / "Pictures"
-        if not default_root.exists():
+        # Choose initial root based on settings.
+        default_root = None
+        if self.bridge._restore_last_enabled():
+            lf = self.bridge._last_folder()
+            if lf:
+                p = Path(lf)
+                if p.exists() and p.is_dir():
+                    default_root = p
+
+        if default_root is None:
+            sf = self.bridge._start_folder_setting()
+            if sf:
+                p = Path(sf)
+                if p.exists() and p.is_dir():
+                    default_root = p
+
+        if default_root is None:
+            p = Path("C:/Pictures")
+            if p.exists():
+                default_root = p
+
+        if default_root is None:
+            p = Path.home() / "Pictures"
+            if p.exists():
+                default_root = p
+
+        if default_root is None:
             default_root = Path.home()
 
         self.fs_model = QFileSystemModel(self)

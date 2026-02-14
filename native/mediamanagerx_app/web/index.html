@@ -68,8 +68,20 @@
                 <input type="checkbox" id="toggleRandomize" />
                 <span>Randomize gallery order</span>
               </label>
+              <div class="field">
+                <div class="field-label">Starting folder</div>
+                <div class="field-row">
+                  <input class="text" id="startFolder" placeholder="(not set)" />
+                  <button class="tb-btn" id="browseStartFolder">Browse…</button>
+                </div>
+              </div>
+
+              <label class="toggle">
+                <input type="checkbox" id="toggleRestoreLast" />
+                <span>Restore previous folder on launch</span>
+              </label>
+
               <div class="modal-actions">
-                <button class="tb-btn" id="reshuffle">Reshuffle now</button>
                 <button class="tb-btn" id="closeSettings">Close</button>
               </div>
             </div>
