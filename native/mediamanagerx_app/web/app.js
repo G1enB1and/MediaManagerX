@@ -70,7 +70,7 @@ function setGlobalLoading(on, text = 'Loading…', pct = null) {
   t.textContent = text;
 
   if (pct == null) {
-    b.style.width = '0%';
+    // keep existing width
   } else {
     const clamped = Math.max(0, Math.min(100, pct));
     b.style.width = `${clamped}%`;
@@ -362,7 +362,8 @@ function refreshFromBridge(bridge) {
       bridge.list_media(folder, PAGE_SIZE, gPage * PAGE_SIZE, function (items) {
         renderMediaList(items);
         renderPager();
-        setGlobalLoading(false);
+        // Hide after containers are painted at least once.
+        requestAnimationFrame(() => setGlobalLoading(false));
       });
     });
   });
@@ -394,6 +395,9 @@ function wirePager() {
 async function main() {
   wireLightbox();
   wirePager();
+
+  // Show immediately on first paint (prevents "nothing then overlay" behavior)
+  setGlobalLoading(true, 'Starting…', 10);
   setStatus('Loading bridge…');
 
   if (!window.qt || !window.qt.webChannelTransport) {

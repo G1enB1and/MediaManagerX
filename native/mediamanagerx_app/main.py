@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, Signal, Slot, QUrl, QDir, QStandardPaths
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QColor
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -409,6 +409,12 @@ class MainWindow(QMainWindow):
         # When native overlay closes, also close the web lightbox chrome.
         self.video_overlay.on_close = self._close_web_lightbox
         self.video_overlay.raise_()
+
+        # Prevent white flash while the first HTML/CSS loads.
+        try:
+            self.web.page().setBackgroundColor(QColor("#0f1115"))
+        except Exception:
+            pass
 
         channel = QWebChannel(self.web.page())
         channel.registerObject("bridge", self.bridge)

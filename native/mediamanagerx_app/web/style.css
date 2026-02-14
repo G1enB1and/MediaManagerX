@@ -59,6 +59,10 @@ main {
   pointer-events: none;
 }
 
+.loading[hidden] {
+  display: none;
+}
+
 .loading-card {
   pointer-events: none;
   width: min(520px, calc(100vw - 40px));
