@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebEngineCore import QWebEnginePage
 
 
 class Bridge(QObject):
@@ -282,6 +283,12 @@ class MainWindow(QMainWindow):
         quit_action.triggered.connect(self.close)
         file_menu.addAction(quit_action)
 
+        view_menu = self.menuBar().addMenu("&View")
+        devtools_action = QAction("Toggle &DevTools", self)
+        devtools_action.setShortcut("F12")
+        devtools_action.triggered.connect(self.toggle_devtools)
+        view_menu.addAction(devtools_action)
+
         help_menu = self.menuBar().addMenu("&Help")
         about_action = QAction("&About", self)
         about_action.triggered.connect(self.about)
@@ -333,6 +340,8 @@ class MainWindow(QMainWindow):
         self.web = QWebEngineView()
         right_layout.addWidget(self.web)
 
+        self._devtools: QWebEngineView | None = None
+
         channel = QWebChannel(self.web.page())
         channel.registerObject("bridge", self.bridge)
         self.web.page().setWebChannel(channel)
@@ -366,6 +375,17 @@ class MainWindow(QMainWindow):
             self.tree.setRootIndex(self.fs_model.index(folder_path))
             self.tree.setCurrentIndex(self.fs_model.index(folder_path))
             self._set_selected_folder(folder_path)
+
+    def toggle_devtools(self) -> None:
+        if self._devtools is None:
+            self._devtools = QWebEngineView()
+            self._devtools.setWindowTitle("MediaManagerX DevTools")
+            self._devtools.resize(1100, 700)
+            self.web.page().setDevToolsPage(self._devtools.page())
+            self._devtools.show()
+        else:
+            self._devtools.close()
+            self._devtools = None
 
     def about(self) -> None:
         QMessageBox.information(
