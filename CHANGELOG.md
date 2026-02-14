@@ -16,6 +16,7 @@
 - `Makefile` convenience targets (`make setup`, `make test`, `make run`) for easier first-run, validation, and smoke-run commands.
 - App bootstrap CLI now supports `--db-path` for custom DB locations.
 - Added `scripts/demo_ingest.py` for quick ingest + selection + scoped listing sanity checks.
+- Initial container-first masonry layout helper (`app/mediamanager/layout/masonry.py`) + design doc (`docs/masonry-layout.md`).
 
 ### Notes
 - Current focus remains backend/data foundation for Phase 1 stability before UI wiring.
