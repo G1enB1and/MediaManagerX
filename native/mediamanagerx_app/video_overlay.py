@@ -116,6 +116,7 @@ class LightboxVideoOverlay(QWidget):
         self.btn_pause = QPushButton("⏸", self.controls)
         self.btn_mute = QPushButton("🔇", self.controls)
         self.lbl_time = QLabel("0:00 / 0:00", self.controls)
+        self.lbl_dbg = QLabel("", self.controls)
         self.slider = QSlider(Qt.Orientation.Horizontal, self.controls)
         self.btn_close = QPushButton("✕", self.controls)
 
@@ -133,6 +134,7 @@ class LightboxVideoOverlay(QWidget):
                 "color: rgba(0,0,0,230); background: transparent; border: none; padding: 6px 10px; font-size: 16px;"
             )
         self.lbl_time.setStyleSheet("color: rgba(0,0,0,180); font-size: 12px;")
+        self.lbl_dbg.setStyleSheet("color: rgba(160,0,0,220); font-size: 11px;")
         self.slider.setStyleSheet("min-width: 260px;")
 
         self.btn_play.clicked.connect(self.player.play)
@@ -151,6 +153,7 @@ class LightboxVideoOverlay(QWidget):
         c_layout.addWidget(self.btn_mute)
         c_layout.addWidget(self.slider, 1)
         c_layout.addWidget(self.lbl_time)
+        c_layout.addWidget(self.lbl_dbg)
         c_layout.addWidget(self.btn_close)
 
         # Layout
@@ -283,26 +286,25 @@ class LightboxVideoOverlay(QWidget):
                 pass
 
     def _on_frame(self, frame: QVideoFrame) -> None:
-        """Convert QVideoFrame to QImage for painting.
-
-        On some platforms/bindings, QVideoFrame.toImage() may not exist or may
-        return a null image. We try common packed RGB formats as a fallback.
-        """
+        """Convert QVideoFrame to QImage for painting."""
 
         try:
-            img = None
-            if hasattr(frame, "toImage"):
-                img = frame.toImage()  # type: ignore[attr-defined]
-            if img is not None and not img.isNull():
-                self.video_view.set_image(img)
-                return
-
-            # Fallback: map raw bytes for common formats
             pf = frame.pixelFormat()
             w = frame.width()
             h = frame.height()
 
+            # Best case
+            img = None
+            if hasattr(frame, "toImage"):
+                img = frame.toImage()  # type: ignore[attr-defined]
+            if img is not None and not img.isNull():
+                self.lbl_dbg.setText("")
+                self.video_view.set_image(img)
+                return
+
+            # Fallback: map raw bytes for common packed RGB formats
             if not frame.map(QVideoFrame.MapMode.ReadOnly):
+                self.lbl_dbg.setText(f"no-map pf={int(pf)}")
                 self.video_view.set_image(None)
                 return
 
@@ -319,14 +321,17 @@ class LightboxVideoOverlay(QWidget):
                     qfmt = QImage.Format.Format_ARGB32
 
                 if qfmt is None:
+                    self.lbl_dbg.setText(f"unsupported pf={int(pf)} {w}x{h}")
                     self.video_view.set_image(None)
                     return
 
                 img2 = QImage(ptr, w, h, bpl, qfmt)
+                self.lbl_dbg.setText("")
                 self.video_view.set_image(img2.copy())
             finally:
                 frame.unmap()
-        except Exception:
+        except Exception as e:
+            self.lbl_dbg.setText(f"frame err: {type(e).__name__}")
             self.video_view.set_image(None)
 
     def _on_media_status(self, status) -> None:
