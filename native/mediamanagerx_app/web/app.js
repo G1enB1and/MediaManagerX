@@ -10,12 +10,65 @@ function setSelectedFolder(text) {
   if (el) el.textContent = text || '(none)';
 }
 
+function ensurePosterObserver() {
+  if (gPosterObserver) return;
+  gPosterObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const el = entry.target;
+        const path = el.getAttribute('data-video-path');
+        if (!path) continue;
+        if (gPosterRequested.has(path)) {
+          gPosterObserver.unobserve(el);
+          continue;
+        }
+        gPosterRequested.add(path);
+
+        if (gBridge && gBridge.get_video_poster) {
+          gBridge.get_video_poster(path, function (posterUrl) {
+            if (posterUrl) {
+              el.src = posterUrl;
+            } else {
+              el.removeAttribute('src');
+              if (gBridge.debug_video_poster) {
+                gBridge.debug_video_poster(path, function (info) {
+                  console.log('debug_video_poster', info);
+                });
+              }
+            }
+          });
+        }
+
+        gPosterObserver.unobserve(el);
+      }
+    },
+    {
+      // Start loading slightly before visible so scrolling feels instant.
+      root: null,
+      rootMargin: '600px 0px 600px 0px',
+      threshold: 0.01,
+    }
+  );
+}
+
+function resetPosterState() {
+  gPosterRequested.clear();
+  if (gPosterObserver) {
+    gPosterObserver.disconnect();
+    gPosterObserver = null;
+  }
+}
+
 function renderMediaList(items) {
   const el = document.getElementById('mediaList');
   if (!el) return;
 
   el.innerHTML = '';
   gMedia = Array.isArray(items) ? items : [];
+
+  resetPosterState();
+  ensurePosterObserver();
 
   if (!items || items.length === 0) {
     const div = document.createElement('div');
@@ -43,10 +96,11 @@ function renderMediaList(items) {
         if (e.key === 'Enter' || e.key === ' ') openLightboxByIndex(idx);
       });
     } else {
-      // Video tile: show poster in an <img> to preserve aspect ratio.
+      // Video tile: lazy poster load only when near viewport.
       const img = document.createElement('img');
       img.className = 'thumb poster';
       img.alt = '';
+      img.setAttribute('data-video-path', item.path || '');
       card.appendChild(img);
 
       const badge = document.createElement('div');
@@ -54,22 +108,7 @@ function renderMediaList(items) {
       badge.textContent = 'VIDEO';
       card.appendChild(badge);
 
-      // Ask Qt for a poster frame (ffmpeg cached).
-      if (gBridge && item.path) {
-        gBridge.get_video_poster(item.path, function (posterUrl) {
-          if (posterUrl) {
-            img.src = posterUrl;
-          } else {
-            // fallback: keep placeholder height and log debug if available
-            img.removeAttribute('src');
-            if (gBridge.debug_video_poster) {
-              gBridge.debug_video_poster(item.path, function (info) {
-                console.log('debug_video_poster', info);
-              });
-            }
-          }
-        });
-      }
+      if (item.path) gPosterObserver.observe(img);
 
       card.addEventListener('click', () => openLightboxByIndex(idx));
       card.addEventListener('keydown', (e) => {
@@ -87,6 +126,10 @@ let gBridge = null;
 let gPage = 0;
 let gTotal = 0;
 const PAGE_SIZE = 100;
+
+// Lazy poster loading for videos
+let gPosterObserver = null;
+const gPosterRequested = new Set();
 
 function openLightboxByIndex(idx) {
   const lb = document.getElementById('lightbox');
