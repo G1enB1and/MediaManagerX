@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import List
 
+from app.mediamanager.db.pagination import page_to_limit_offset
 from app.mediamanager.db.scope_query import build_scope_where
 from app.mediamanager.utils.pathing import normalize_windows_path
 
@@ -54,3 +55,16 @@ def list_media_in_scope(
 
     rows = conn.execute(sql, params).fetchall()
     return [{"id": r[0], "path": r[1], "media_type": r[2]} for r in rows]
+
+
+def list_media_page(
+    conn: sqlite3.Connection,
+    selected_roots: list[str],
+    *,
+    page: int,
+    page_size: int = 100,
+) -> List[dict]:
+    """Convenience wrapper for page-based access (1-based page index)."""
+
+    limit, offset = page_to_limit_offset(page=page, page_size=page_size)
+    return list_media_in_scope(conn, selected_roots, limit=limit, offset=offset)

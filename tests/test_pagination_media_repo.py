@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 
 from app.mediamanager.db.connect import connect_db
-from app.mediamanager.db.media_repo import add_media_item, list_media_in_scope
+from app.mediamanager.db.media_repo import add_media_item, list_media_in_scope, list_media_page
 
 
 class TestMediaRepoPagination(unittest.TestCase):
@@ -27,6 +27,10 @@ class TestMediaRepoPagination(unittest.TestCase):
 
         page2 = list_media_in_scope(conn, roots, limit=2, offset=2)
         self.assertEqual([r["path"] for r in page2], ["c:/media/c.png"])
+
+        # Same behavior via page helper (1-based)
+        page1b = list_media_page(conn, roots, page=1, page_size=2)
+        self.assertEqual([r["path"] for r in page1b], ["c:/media/a.png", "c:/media/b.png"])
 
         page3 = list_media_in_scope(conn, roots, limit=2, offset=4)
         self.assertEqual(page3, [])
