@@ -48,7 +48,7 @@ main {
 }
 
 .pane {
-  max-width: 900px;
+  max-width: none;
 }
 
 h2 {
@@ -70,7 +70,8 @@ p {
 }
 
 .masonry {
-  column-width: 220px;
+  /* Responsive columns: browser chooses column-count based on available width */
+  column-width: 240px;
   column-gap: 10px;
 }
 
@@ -166,14 +167,18 @@ p {
 
 .lightbox-content {
   position: absolute;
-  inset: 20px;
+  /* leave room for the close button / UI chrome */
+  inset: 20px 20px 20px 20px;
   display: grid;
   place-items: center;
 }
 
 #lightboxImg {
-  max-width: 100%;
-  max-height: 100%;
+  /* Fit entirely in the viewport (no scrolling) while preserving aspect ratio */
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 40px);
+  width: auto;
+  height: auto;
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);

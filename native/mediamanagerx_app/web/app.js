@@ -95,8 +95,17 @@ function lightboxNext() {
 }
 
 function wireLightbox() {
+  const lb = document.getElementById('lightbox');
   const backdrop = document.getElementById('lightboxBackdrop');
+  const img = document.getElementById('lightboxImg');
+
+  // Click outside closes
   if (backdrop) backdrop.addEventListener('click', closeLightbox);
+  if (lb) lb.addEventListener('click', (e) => {
+    // only close when clicking the overlay chrome, not the image itself
+    if (e.target === lb) closeLightbox();
+  });
+  if (img) img.addEventListener('click', (e) => e.stopPropagation());
 
   const btnPrev = document.getElementById('lbPrev');
   const btnNext = document.getElementById('lbNext');
