@@ -5,6 +5,8 @@ import hashlib
 import subprocess
 import shutil
 import random
+import threading
+import time
 from pathlib import Path
 
 from PySide6.QtCore import (
@@ -48,6 +50,9 @@ class Bridge(QObject):
     selectedFolderChanged = Signal(str)
     openVideoRequested = Signal(str, bool, bool, bool, int, int)
     closeVideoRequested = Signal()
+
+    # Async file ops (so WebEngine UI doesn't freeze during rename)
+    fileOpFinished = Signal(str, bool, str, str)  # op, ok, old_path, new_path
 
     def __init__(self) -> None:
         super().__init__()
@@ -201,11 +206,16 @@ class Bridge(QObject):
         candidates.sort(key=lambda p: str(p).lower())
 
         if self._randomize_enabled():
-            # Stable paging within a session, but different order each app launch.
+            # Stable ordering within a session (and doesn't reshuffle when items
+            # are added/removed): sort by per-item hash keyed by session seed.
             base = int(hashlib.sha1(folder.encode("utf-8")).hexdigest(), 16) % (2**32)
             seed = (base ^ int(self._session_shuffle_seed)) % (2**32)
-            rng = random.Random(seed)
-            rng.shuffle(candidates)
+
+            def _rank(p: Path) -> str:
+                s = f"{seed}:{str(p).replace('\\\\','/').lower()}".encode("utf-8")
+                return hashlib.sha1(s).hexdigest()
+
+            candidates.sort(key=_rank)
 
         self._media_cache[cache_key] = candidates
         return candidates
@@ -353,72 +363,120 @@ class Bridge(QObject):
                 return cand
             i += 1
 
+    def _hide_by_renaming_dot(self, path: str) -> str:
+        p = Path(path)
+        if not p.exists():
+            return ""
+        name = p.name
+        if name.startswith("."):
+            return str(p)
+        target = p.with_name(f".{name}")
+        target = self._unique_path(target)
+        p.rename(target)
+        self._media_cache.clear()
+        return str(target)
+
     @Slot(str, result=str)
     def hide_by_renaming_dot(self, path: str) -> str:
-        """Hide a file/folder by renaming to dot-prefixed name.
-
-        Returns new path on success, empty string on failure.
-        """
-
+        """(Sync) Hide by dot-rename."""
         try:
-            p = Path(path)
-            if not p.exists():
-                return ""
-
-            name = p.name
-            if name.startswith("."):
-                return str(p)
-
-            target = p.with_name(f".{name}")
-            target = self._unique_path(target)
-
-            p.rename(target)
-            self._media_cache.clear()
-            return str(target)
+            return self._hide_by_renaming_dot(path)
         except Exception:
             return ""
+
+    @Slot(str, result=bool)
+    def hide_by_renaming_dot_async(self, path: str) -> bool:
+        """Async hide to avoid freezing WebEngine UI."""
+
+        old = str(path)
+
+        def work() -> None:
+            ok = False
+            newp = ""
+            try:
+                newp = self._hide_by_renaming_dot(old)
+                ok = bool(newp)
+            except Exception:
+                ok = False
+            self.fileOpFinished.emit("hide", ok, old, newp)
+
+        threading.Thread(target=work, daemon=True).start()
+        return True
+
+    def _unhide_by_renaming_dot(self, path: str) -> str:
+        p = Path(path)
+        if not p.exists():
+            return ""
+        name = p.name
+        if not name.startswith("."):
+            return str(p)
+        target = p.with_name(name[1:])
+        target = self._unique_path(target)
+        p.rename(target)
+        self._media_cache.clear()
+        return str(target)
 
     @Slot(str, result=str)
     def unhide_by_renaming_dot(self, path: str) -> str:
-        """Unhide a dot-prefixed file/folder by removing leading dot."""
-
         try:
-            p = Path(path)
-            if not p.exists():
-                return ""
-
-            name = p.name
-            if not name.startswith("."):
-                return str(p)
-
-            target = p.with_name(name[1:])
-            target = self._unique_path(target)
-            p.rename(target)
-            self._media_cache.clear()
-            return str(target)
+            return self._unhide_by_renaming_dot(path)
         except Exception:
             return ""
+
+    @Slot(str, result=bool)
+    def unhide_by_renaming_dot_async(self, path: str) -> bool:
+        old = str(path)
+
+        def work() -> None:
+            ok = False
+            newp = ""
+            try:
+                newp = self._unhide_by_renaming_dot(old)
+                ok = bool(newp)
+            except Exception:
+                ok = False
+            self.fileOpFinished.emit("unhide", ok, old, newp)
+
+        threading.Thread(target=work, daemon=True).start()
+        return True
+
+    def _rename_path(self, path: str, new_name: str) -> str:
+        p = Path(path)
+        if not p.exists():
+            return ""
+        new_name = (new_name or "").strip()
+        if not new_name:
+            return ""
+        target = p.with_name(new_name)
+        target = self._unique_path(target)
+        p.rename(target)
+        self._media_cache.clear()
+        return str(target)
 
     @Slot(str, str, result=str)
     def rename_path(self, path: str, new_name: str) -> str:
-        """Rename file/folder basename. Returns new path or empty string."""
-
         try:
-            p = Path(path)
-            if not p.exists():
-                return ""
-
-            new_name = (new_name or "").strip()
-            if not new_name:
-                return ""
-
-            target = p.with_name(new_name)
-            target = self._unique_path(target)
-            p.rename(target)
-            self._media_cache.clear()
-            return str(target)
+            return self._rename_path(path, new_name)
         except Exception:
             return ""
+
+    @Slot(str, str, result=bool)
+    def rename_path_async(self, path: str, new_name: str) -> bool:
+        old = str(path)
+        newn = str(new_name)
+
+        def work() -> None:
+            ok = False
+            newp = ""
+            try:
+                newp = self._rename_path(old, newn)
+                ok = bool(newp)
+            except Exception:
+                ok = False
+            self.fileOpFinished.emit("rename", ok, old, newp)
+
+        threading.Thread(target=work, daemon=True).start()
+        return True
 
     @Slot(str, result=str)
     def path_to_url(self, path: str) -> str:

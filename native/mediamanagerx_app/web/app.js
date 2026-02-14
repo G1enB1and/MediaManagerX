@@ -153,14 +153,10 @@ function wireCtxMenu() {
     hideBtn.addEventListener('click', () => {
       const item = gCtxItem;
       hideCtx();
-      if (!item || !item.path || !gBridge || !gBridge.hide_by_renaming_dot) return;
+      if (!item || !item.path || !gBridge || !gBridge.hide_by_renaming_dot_async) return;
+      if (gCtxFromLightbox) closeLightbox();
       setGlobalLoading(true, 'Hiding…', 25);
-      gBridge.hide_by_renaming_dot(item.path, function (newPath) {
-        if (gCtxFromLightbox) {
-          closeLightbox();
-        }
-        refreshFromBridge(gBridge);
-      });
+      gBridge.hide_by_renaming_dot_async(item.path, function () {});
     });
   }
 
@@ -168,14 +164,10 @@ function wireCtxMenu() {
     unhideBtn.addEventListener('click', () => {
       const item = gCtxItem;
       hideCtx();
-      if (!item || !item.path || !gBridge || !gBridge.unhide_by_renaming_dot) return;
+      if (!item || !item.path || !gBridge || !gBridge.unhide_by_renaming_dot_async) return;
+      if (gCtxFromLightbox) closeLightbox();
       setGlobalLoading(true, 'Unhiding…', 25);
-      gBridge.unhide_by_renaming_dot(item.path, function () {
-        if (gCtxFromLightbox) {
-          closeLightbox();
-        }
-        refreshFromBridge(gBridge);
-      });
+      gBridge.unhide_by_renaming_dot_async(item.path, function () {});
     });
   }
 
@@ -183,15 +175,13 @@ function wireCtxMenu() {
     renameBtn.addEventListener('click', () => {
       const item = gCtxItem;
       hideCtx();
-      if (!item || !item.path || !gBridge || !gBridge.rename_path) return;
+      if (!item || !item.path || !gBridge || !gBridge.rename_path_async) return;
       const curName = item.path.split(/[/\\]/).pop();
       const next = prompt('Rename to:', curName);
       if (!next || next === curName) return;
-      gBridge.rename_path(item.path, next, function (newPath) {
-        if (!newPath) return;
-        // refresh for correctness
-        refreshFromBridge(gBridge);
-      });
+      if (gCtxFromLightbox) closeLightbox();
+      setGlobalLoading(true, 'Renaming…', 25);
+      gBridge.rename_path_async(item.path, next, function () {});
     });
   }
 }
@@ -636,6 +626,16 @@ async function main() {
     }
 
     gBridge = bridge;
+
+    if (bridge.fileOpFinished) {
+      bridge.fileOpFinished.connect(function (op, ok, oldPath, newPath) {
+        // hide overlay regardless; refresh handles the rest.
+        setGlobalLoading(false);
+        if (ok) {
+          refreshFromBridge(bridge);
+        }
+      });
+    }
 
     bridge.get_tools_status(function (st) {
       const ff = st && st.ffmpeg ? 'ffmpeg✓' : 'ffmpeg×';
