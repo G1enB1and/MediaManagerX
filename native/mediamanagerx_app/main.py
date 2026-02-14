@@ -37,6 +37,43 @@ class Bridge(QObject):
     def get_selected_folder(self) -> str:
         return self._selected_folder
 
+    @Slot(str, int, result=list)
+    def list_media(self, folder: str, limit: int = 100) -> list[str]:
+        """Return a simple list of media file paths under folder.
+
+        This is intentionally a tiny first bridge method so the Web UI can
+        show *something real* immediately.
+        """
+
+        try:
+            root = Path(folder)
+            if not root.exists() or not root.is_dir():
+                return []
+
+            exts = {
+                ".jpg",
+                ".jpeg",
+                ".png",
+                ".webp",
+                ".gif",
+                ".bmp",
+                ".mp4",
+                ".webm",
+                ".mov",
+                ".mkv",
+            }
+
+            out: list[str] = []
+            for p in root.rglob("*"):
+                if len(out) >= int(limit):
+                    break
+                if p.is_file() and p.suffix.lower() in exts:
+                    out.append(str(p))
+            return out
+        except Exception:
+            # Don't crash the bridge; the UI can display empty state.
+            return []
+
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:

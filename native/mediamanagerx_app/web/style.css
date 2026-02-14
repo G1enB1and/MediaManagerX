@@ -56,10 +56,41 @@ h2 {
   font-size: 16px;
 }
 
+h3 {
+  margin: 16px 0 8px 0;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
 p {
   margin: 0 0 16px 0;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.list {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.list .row {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: var(--fg);
+}
+
+.list .row:last-child {
+  border-bottom: none;
+}
+
+.list .empty {
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .kv {
