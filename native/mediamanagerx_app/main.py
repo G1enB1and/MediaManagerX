@@ -39,8 +39,8 @@ class Bridge(QObject):
     def get_selected_folder(self) -> str:
         return self._selected_folder
 
-    @Slot(str, int, result=list)
-    def list_media(self, folder: str, limit: int = 100) -> list[dict]:
+    @Slot(str, int, int, result=list)
+    def list_media(self, folder: str, limit: int = 100, offset: int = 0) -> list[dict]:
         """Return a list of media entries under folder.
 
         Each entry is a dict:
@@ -58,7 +58,12 @@ class Bridge(QObject):
             video_exts = {".mp4", ".webm", ".mov", ".mkv"}
             exts = image_exts | video_exts
 
+            # NOTE: rglob order is filesystem dependent. We'll sort later.
+            # For now, implement offset/limit in a single pass.
             out: list[dict] = []
+            skipped = 0
+            want_skip = max(0, int(offset))
+
             for p in root.rglob("*"):
                 if len(out) >= int(limit):
                     break
@@ -67,6 +72,10 @@ class Bridge(QObject):
 
                 ext = p.suffix.lower()
                 if ext not in exts:
+                    continue
+
+                if skipped < want_skip:
+                    skipped += 1
                     continue
 
                 media_type = "image" if ext in image_exts else "video"
@@ -123,13 +132,19 @@ class MainWindow(QMainWindow):
 
         left_layout.addWidget(QLabel("Folders"))
 
+        default_root = Path("C:/Pictures")
+        if not default_root.exists():
+            default_root = Path.home() / "Pictures"
+        if not default_root.exists():
+            default_root = Path.home()
+
         self.fs_model = QFileSystemModel(self)
         self.fs_model.setFilter(QDir.Filter.AllDirs | QDir.Filter.NoDotAndDotDot | QDir.Filter.Drives)
-        self.fs_model.setRootPath(str(Path.home()))
+        self.fs_model.setRootPath(str(default_root))
 
         self.tree = QTreeView()
         self.tree.setModel(self.fs_model)
-        self.tree.setRootIndex(self.fs_model.index(str(Path.home())))
+        self.tree.setRootIndex(self.fs_model.index(str(default_root)))
         self.tree.setHeaderHidden(True)
         self.tree.setAnimated(True)
         self.tree.setIndentation(14)
@@ -143,7 +158,7 @@ class MainWindow(QMainWindow):
 
         left_layout.addWidget(self.tree, 1)
 
-        self._set_selected_folder(str(Path.home()))
+        self._set_selected_folder(str(default_root))
 
         # Right: embedded WebEngine UI scaffold
         right = QWidget()

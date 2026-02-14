@@ -60,6 +60,9 @@ function renderMediaList(items) {
 
 let gMedia = [];
 let gIndex = -1;
+let gBridge = null;
+let gPage = 0;
+const PAGE_SIZE = 100;
 
 function openLightboxByIndex(idx) {
   const lb = document.getElementById('lightbox');
@@ -146,21 +149,48 @@ function wireLightbox() {
   });
 }
 
+function setPageLabel() {
+  const el = document.getElementById('pageLabel');
+  if (el) el.textContent = `Page ${gPage + 1}`;
+}
+
 function refreshFromBridge(bridge) {
   bridge.get_selected_folder(function (folder) {
     setSelectedFolder(folder);
+    setPageLabel();
     if (!folder) {
       renderMediaList([]);
       return;
     }
-    bridge.list_media(folder, 100, function (items) {
+    bridge.list_media(folder, PAGE_SIZE, gPage * PAGE_SIZE, function (items) {
       renderMediaList(items);
     });
   });
 }
 
+function nextPage() {
+  if (!gBridge) return;
+  gPage += 1;
+  refreshFromBridge(gBridge);
+}
+
+function prevPage() {
+  if (!gBridge) return;
+  gPage = Math.max(0, gPage - 1);
+  refreshFromBridge(gBridge);
+}
+
+function wirePager() {
+  const prev = document.getElementById('prevPage');
+  const next = document.getElementById('nextPage');
+  if (prev) prev.addEventListener('click', prevPage);
+  if (next) next.addEventListener('click', nextPage);
+  setPageLabel();
+}
+
 async function main() {
   wireLightbox();
+  wirePager();
   setStatus('Loading bridge…');
 
   if (!window.qt || !window.qt.webChannelTransport) {
@@ -176,6 +206,8 @@ async function main() {
       return;
     }
 
+    gBridge = bridge;
+
     // Initial sync
     refreshFromBridge(bridge);
     setStatus('Ready');
@@ -183,6 +215,7 @@ async function main() {
     // React to future changes
     if (bridge.selectedFolderChanged) {
       bridge.selectedFolderChanged.connect(function () {
+        gPage = 0;
         refreshFromBridge(bridge);
       });
     }

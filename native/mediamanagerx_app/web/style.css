@@ -47,6 +47,36 @@ main {
   padding: 16px;
 }
 
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(to bottom, rgba(15, 17, 21, 0.95), rgba(15, 17, 21, 0.7));
+  backdrop-filter: blur(6px);
+  padding: 8px 0 10px 0;
+  margin-bottom: 10px;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tb-btn {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--fg);
+}
+
+.tb-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .pane {
   max-width: none;
 }
