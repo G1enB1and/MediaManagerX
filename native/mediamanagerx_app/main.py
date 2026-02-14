@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sys
+import hashlib
+import subprocess
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, Signal, Slot, QUrl, QDir
@@ -28,6 +30,51 @@ class Bridge(QObject):
         super().__init__()
         self._selected_folder: str = ""
         self._media_cache: dict[str, list[Path]] = {}
+        self._thumb_dir = Path("data") / "thumbs"
+        self._thumb_dir.mkdir(parents=True, exist_ok=True)
+
+    def _thumb_key(self, path: Path) -> str:
+        # Stable across runs; normalize separators + lowercase for Windows.
+        s = str(path).replace("\\", "/").lower().encode("utf-8")
+        return hashlib.sha1(s).hexdigest()
+
+    def _video_poster_path(self, video_path: Path) -> Path:
+        return self._thumb_dir / f"{self._thumb_key(video_path)}.jpg"
+
+    def _ensure_video_poster(self, video_path: Path) -> Path | None:
+        """Generate a poster jpg for a video using ffmpeg (if missing)."""
+
+        out = self._video_poster_path(video_path)
+        if out.exists():
+            return out
+
+        try:
+            out.parent.mkdir(parents=True, exist_ok=True)
+            # Grab an early frame; scale down for gallery thumbnails.
+            cmd = [
+                "ffmpeg",
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-ss",
+                "0",
+                "-i",
+                str(video_path),
+                "-frames:v",
+                "1",
+                "-vf",
+                "scale='min(640,iw)':-2",
+                "-q:v",
+                "4",
+                str(out),
+            ]
+            subprocess.run(cmd, check=True)
+            if out.exists():
+                return out
+            return None
+        except Exception:
+            return None
 
     def set_selected_folder(self, folder: str) -> None:
         folder = folder or ""
@@ -75,6 +122,19 @@ class Bridge(QObject):
             return len(self._scan_media_paths(folder))
         except Exception:
             return 0
+
+    @Slot(str, result=str)
+    def get_video_poster(self, video_path: str) -> str:
+        """Return a file:// URL for a cached/generated poster image for a video."""
+
+        try:
+            p = Path(video_path)
+            out = self._ensure_video_poster(p)
+            if not out:
+                return ""
+            return QUrl.fromLocalFile(str(out)).toString()
+        except Exception:
+            return ""
 
     @Slot(str, int, int, result=list)
     def list_media(self, folder: str, limit: int = 100, offset: int = 0) -> list[dict]:

@@ -48,6 +48,18 @@ function renderMediaList(items) {
       ph.textContent = 'VIDEO';
       card.appendChild(ph);
 
+      // Ask Qt for a poster frame (ffmpeg cached) and set it as a background.
+      if (gBridge && item.path) {
+        gBridge.get_video_poster(item.path, function (posterUrl) {
+          if (posterUrl) {
+            ph.textContent = '';
+            ph.style.backgroundImage = `url('${posterUrl}')`;
+            ph.style.backgroundSize = 'cover';
+            ph.style.backgroundPosition = 'center';
+          }
+        });
+      }
+
       card.addEventListener('click', () => openLightboxByIndex(idx));
       card.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') openLightboxByIndex(idx);
@@ -83,6 +95,11 @@ function openLightboxByIndex(idx) {
     img.src = '';
     vid.style.display = 'block';
     vid.src = item.url;
+    vid.currentTime = 0;
+    vid.autoplay = false;
+    vid.loop = false;
+    // Manual play should be unmuted by default.
+    vid.muted = false;
   } else {
     vid.pause();
     vid.style.display = 'none';
