@@ -131,9 +131,10 @@ class LightboxVideoOverlay(QWidget):
         # Track seek state
         self._seeking = False
 
-        # Auto-hide controls
+        # Auto-hide controls (we'll keep them visible longer; some Windows video
+        # surfaces don't reliably emit mouse move events)
         self._hide_timer = QTimer(self)
-        self._hide_timer.setInterval(2000)
+        self._hide_timer.setInterval(6000)
         self._hide_timer.setSingleShot(True)
         self._hide_timer.timeout.connect(self._hide_controls)
 
@@ -146,6 +147,7 @@ class LightboxVideoOverlay(QWidget):
 
         # Show controls when mouse moves over the video surface
         self.video_widget.installEventFilter(self)
+        self.controls.installEventFilter(self)
 
         # ESC closes reliably
         QShortcut(QKeySequence("Escape"), self, activated=self.close_overlay)
@@ -158,8 +160,7 @@ class LightboxVideoOverlay(QWidget):
         if obj is self.backdrop and event.type() == QEvent.Type.MouseButtonPress:
             self.close_overlay()
             return True
-        if event.type() == QEvent.Type.MouseMove:
-            # Mouse move anywhere in the video viewport should show controls.
+        if event.type() in (QEvent.Type.MouseMove, QEvent.Type.HoverMove):
             self._show_controls()
         return super().eventFilter(obj, event)
 
@@ -220,6 +221,10 @@ class LightboxVideoOverlay(QWidget):
         self.activateWindow()
         self.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
         self.video_widget.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+
+        # Force controls visible on open; auto-hide after a while.
+        self._show_controls()
+        QTimer.singleShot(0, self.controls.raise_)
 
         if req.autoplay:
             self.player.play()
