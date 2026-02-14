@@ -152,9 +152,10 @@ function wireCtxMenu() {
   if (hideBtn) {
     hideBtn.addEventListener('click', () => {
       const item = gCtxItem;
+      const fromLb = gCtxFromLightbox;
       hideCtx();
       if (!item || !item.path || !gBridge || !gBridge.hide_by_renaming_dot_async) return;
-      if (gCtxFromLightbox) closeLightbox();
+      if (fromLb) closeLightbox();
       setGlobalLoading(true, 'Hiding…', 25);
       gBridge.hide_by_renaming_dot_async(item.path, function () {});
     });
@@ -163,9 +164,10 @@ function wireCtxMenu() {
   if (unhideBtn) {
     unhideBtn.addEventListener('click', () => {
       const item = gCtxItem;
+      const fromLb = gCtxFromLightbox;
       hideCtx();
       if (!item || !item.path || !gBridge || !gBridge.unhide_by_renaming_dot_async) return;
-      if (gCtxFromLightbox) closeLightbox();
+      if (fromLb) closeLightbox();
       setGlobalLoading(true, 'Unhiding…', 25);
       gBridge.unhide_by_renaming_dot_async(item.path, function () {});
     });
@@ -174,12 +176,13 @@ function wireCtxMenu() {
   if (renameBtn) {
     renameBtn.addEventListener('click', () => {
       const item = gCtxItem;
+      const fromLb = gCtxFromLightbox;
       hideCtx();
       if (!item || !item.path || !gBridge || !gBridge.rename_path_async) return;
       const curName = item.path.split(/[/\\]/).pop();
       const next = prompt('Rename to:', curName);
       if (!next || next === curName) return;
-      if (gCtxFromLightbox) closeLightbox();
+      if (fromLb) closeLightbox();
       setGlobalLoading(true, 'Renaming…', 25);
       gBridge.rename_path_async(item.path, next, function () {});
     });

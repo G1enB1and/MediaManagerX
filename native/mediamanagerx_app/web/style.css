@@ -175,7 +175,7 @@ main {
   inset: 0;
   display: grid;
   place-items: center;
-  z-index: 5000;
+  z-index: 13000;
   pointer-events: none;
 }
 
