@@ -41,11 +41,6 @@ function renderMediaList(items) {
       card.appendChild(ph);
     }
 
-    const cap = document.createElement('div');
-    cap.className = 'caption';
-    cap.textContent = item.path;
-    card.appendChild(cap);
-
     el.appendChild(card);
   }
 }
