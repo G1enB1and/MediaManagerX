@@ -6,7 +6,7 @@ import subprocess
 import shutil
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, Signal, Slot, QUrl, QDir
+from PySide6.QtCore import QObject, Qt, Signal, Slot, QUrl, QDir, QStandardPaths
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
@@ -32,7 +32,10 @@ class Bridge(QObject):
         super().__init__()
         self._selected_folder: str = ""
         self._media_cache: dict[str, list[Path]] = {}
-        self._thumb_dir = Path("data") / "thumbs"
+        appdata = Path(
+            QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
+        )
+        self._thumb_dir = appdata / "thumbs"
         self._thumb_dir.mkdir(parents=True, exist_ok=True)
 
     def _thumb_key(self, path: Path) -> str:
@@ -200,6 +203,7 @@ class Bridge(QObject):
         return {
             "ffmpeg": bool(self._ffmpeg_bin()),
             "ffprobe": bool(self._ffprobe_bin()),
+            "thumb_dir": str(self._thumb_dir),
         }
 
     @Slot(str, result=float)
