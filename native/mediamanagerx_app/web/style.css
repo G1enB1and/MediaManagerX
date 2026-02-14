@@ -126,12 +126,14 @@ p {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.75);
+  z-index: 0;
 }
 
 .lightbox-ui {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 2;
 }
 
 .lb-btn {
@@ -171,6 +173,9 @@ p {
   inset: 20px 20px 20px 20px;
   display: grid;
   place-items: center;
+  z-index: 1;
+  /* Let clicks fall through to the backdrop so click-outside closes */
+  pointer-events: none;
 }
 
 #lightboxImg {
@@ -182,6 +187,7 @@ p {
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
 }
 
 .kv {
