@@ -50,6 +50,38 @@ header {
   background: rgba(255,255,255,0.06);
 }
 
+.ctx {
+  position: fixed;
+  z-index: 9000;
+  min-width: 180px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(23, 26, 33, 0.98);
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+}
+
+.ctx[hidden] { display: none; }
+
+.ctx-item {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.ctx-item:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.ctx-sep {
+  height: 1px;
+  background: var(--border);
+}
+
 .modal {
   position: fixed;
   inset: 0;

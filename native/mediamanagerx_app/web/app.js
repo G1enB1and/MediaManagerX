@@ -92,6 +92,101 @@ function setGlobalLoading(on, text = 'Loading…', pct = null) {
   }, wait);
 }
 
+let gCtxItem = null;
+let gCtxIndex = -1;
+
+function hideCtx() {
+  const ctx = document.getElementById('ctx');
+  if (ctx) ctx.hidden = true;
+  gCtxItem = null;
+  gCtxIndex = -1;
+}
+
+function showCtx(x, y, item, idx) {
+  const ctx = document.getElementById('ctx');
+  if (!ctx) return;
+
+  gCtxItem = item;
+  gCtxIndex = idx;
+
+  const hideBtn = document.getElementById('ctxHide');
+  const unhideBtn = document.getElementById('ctxUnhide');
+  const renameBtn = document.getElementById('ctxRename');
+
+  const isHidden = item && item.path && item.path.split(/[/\\]/).pop().startsWith('.');
+  if (hideBtn) hideBtn.style.display = isHidden ? 'none' : 'block';
+  if (unhideBtn) unhideBtn.style.display = isHidden ? 'block' : 'none';
+
+  ctx.hidden = false;
+
+  // Position clamped to viewport
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const rect = ctx.getBoundingClientRect();
+  const w = rect.width || 200;
+  const h = rect.height || 180;
+  const left = Math.max(8, Math.min(vw - w - 8, x));
+  const top = Math.max(8, Math.min(vh - h - 8, y));
+  ctx.style.left = `${left}px`;
+  ctx.style.top = `${top}px`;
+}
+
+function wireCtxMenu() {
+  const ctx = document.getElementById('ctx');
+  const hideBtn = document.getElementById('ctxHide');
+  const unhideBtn = document.getElementById('ctxUnhide');
+  const renameBtn = document.getElementById('ctxRename');
+  const cancelBtn = document.getElementById('ctxCancel');
+
+  if (cancelBtn) cancelBtn.addEventListener('click', hideCtx);
+  window.addEventListener('click', (e) => {
+    if (ctx && !ctx.hidden && !ctx.contains(e.target)) hideCtx();
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hideCtx();
+  });
+
+  if (hideBtn) {
+    hideBtn.addEventListener('click', () => {
+      const item = gCtxItem;
+      hideCtx();
+      if (!item || !item.path || !gBridge || !gBridge.hide_by_renaming_dot) return;
+      gBridge.hide_by_renaming_dot(item.path, function (newPath) {
+        if (!newPath) return;
+        refreshFromBridge(gBridge);
+      });
+    });
+  }
+
+  if (unhideBtn) {
+    unhideBtn.addEventListener('click', () => {
+      const item = gCtxItem;
+      hideCtx();
+      if (!item || !item.path || !gBridge || !gBridge.unhide_by_renaming_dot) return;
+      gBridge.unhide_by_renaming_dot(item.path, function () {
+        // easiest: refresh
+        refreshFromBridge(gBridge);
+      });
+    });
+  }
+
+  if (renameBtn) {
+    renameBtn.addEventListener('click', () => {
+      const item = gCtxItem;
+      hideCtx();
+      if (!item || !item.path || !gBridge || !gBridge.rename_path) return;
+      const curName = item.path.split(/[/\\]/).pop();
+      const next = prompt('Rename to:', curName);
+      if (!next || next === curName) return;
+      gBridge.rename_path(item.path, next, function (newPath) {
+        if (!newPath) return;
+        // refresh for correctness
+        refreshFromBridge(gBridge);
+      });
+    });
+  }
+}
+
 function renderMediaList(items) {
   const el = document.getElementById('mediaList');
   if (!el) return;
@@ -136,11 +231,7 @@ function renderMediaList(items) {
 
       card.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        if (!gBridge || !gBridge.hide_by_renaming_dot) return;
-        if (!item.path) return;
-        gBridge.hide_by_renaming_dot(item.path, function (newPath) {
-          if (newPath) refreshFromBridge(gBridge);
-        });
+        showCtx(e.clientX, e.clientY, item, idx);
       });
     } else {
       const sk = document.createElement('div');
@@ -169,11 +260,7 @@ function renderMediaList(items) {
 
       card.addEventListener('contextmenu', (e) => {
         e.preventDefault();
-        if (!gBridge || !gBridge.hide_by_renaming_dot) return;
-        if (!item.path) return;
-        gBridge.hide_by_renaming_dot(item.path, function (newPath) {
-          if (newPath) refreshFromBridge(gBridge);
-        });
+        showCtx(e.clientX, e.clientY, item, idx);
       });
     }
 
@@ -506,6 +593,7 @@ async function main() {
   wireLightbox();
   wirePager();
   wireSettings();
+  wireCtxMenu();
 
   // Show immediately on first paint (prevents "nothing then overlay" behavior)
   setGlobalLoading(true, 'Starting…', 10);

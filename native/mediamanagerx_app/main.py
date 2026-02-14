@@ -338,6 +338,20 @@ class Bridge(QObject):
         except Exception:
             return ""
 
+    def _unique_path(self, target: Path) -> Path:
+        if not target.exists():
+            return target
+
+        suffix = target.suffix
+        stem = target.stem
+        parent = target.parent
+        i = 2
+        while True:
+            cand = parent / f"{stem} ({i}){suffix}"
+            if not cand.exists():
+                return cand
+            i += 1
+
     @Slot(str, result=str)
     def hide_by_renaming_dot(self, path: str) -> str:
         """Hide a file/folder by renaming to dot-prefixed name.
@@ -355,22 +369,60 @@ class Bridge(QObject):
                 return str(p)
 
             target = p.with_name(f".{name}")
-            # Collision handling
-            if target.exists():
-                stem = f".{p.stem}"
-                suffix = p.suffix
-                i = 2
-                while True:
-                    cand = p.with_name(f"{stem} ({i}){suffix}")
-                    if not cand.exists():
-                        target = cand
-                        break
-                    i += 1
+            target = self._unique_path(target)
 
             p.rename(target)
-            # Invalidate caches so gallery updates
             self._media_cache.clear()
             return str(target)
+        except Exception:
+            return ""
+
+    @Slot(str, result=str)
+    def unhide_by_renaming_dot(self, path: str) -> str:
+        """Unhide a dot-prefixed file/folder by removing leading dot."""
+
+        try:
+            p = Path(path)
+            if not p.exists():
+                return ""
+
+            name = p.name
+            if not name.startswith("."):
+                return str(p)
+
+            target = p.with_name(name[1:])
+            target = self._unique_path(target)
+            p.rename(target)
+            self._media_cache.clear()
+            return str(target)
+        except Exception:
+            return ""
+
+    @Slot(str, str, result=str)
+    def rename_path(self, path: str, new_name: str) -> str:
+        """Rename file/folder basename. Returns new path or empty string."""
+
+        try:
+            p = Path(path)
+            if not p.exists():
+                return ""
+
+            new_name = (new_name or "").strip()
+            if not new_name:
+                return ""
+
+            target = p.with_name(new_name)
+            target = self._unique_path(target)
+            p.rename(target)
+            self._media_cache.clear()
+            return str(target)
+        except Exception:
+            return ""
+
+    @Slot(str, result=str)
+    def path_to_url(self, path: str) -> str:
+        try:
+            return QUrl.fromLocalFile(str(path)).toString()
         except Exception:
             return ""
 
