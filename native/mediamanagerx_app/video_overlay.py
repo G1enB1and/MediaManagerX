@@ -15,7 +15,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QSlider,
-    QVBoxLayout,
     QWidget,
 )
 
@@ -156,12 +155,9 @@ class LightboxVideoOverlay(QWidget):
         c_layout.addWidget(self.lbl_dbg)
         c_layout.addWidget(self.btn_close)
 
-        # Layout
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        layout.addWidget(self.backdrop, 1)
-        layout.addWidget(self.video_view, 0)
+        # No layout: we position children manually in resizeEvent.
+        self.backdrop.setGeometry(self.rect())
+        self.video_view.setGeometry(self.rect())
 
         # Put the video surface above the backdrop using stacking
         self.backdrop.lower()
@@ -257,7 +253,11 @@ class LightboxVideoOverlay(QWidget):
 
         self.player.setSource(QUrl.fromLocalFile(path))
         self.setVisible(True)
+        self.video_view.setVisible(True)
+        self.backdrop.setVisible(True)
         self.raise_()
+        self.video_view.raise_()
+        self.controls.raise_()
         self.activateWindow()
         self.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
         self.video_view.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
