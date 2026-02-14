@@ -407,6 +407,7 @@ class MainWindow(QMainWindow):
         # Native loading overlay shown while the WebEngine page itself is loading.
         self.web_loading = QWidget(self.web)
         self.web_loading.setStyleSheet("background: #0f1115;")
+        self.web_loading.setGeometry(self.web.rect())
         self.web_loading.setVisible(True)
 
         wl_layout = QVBoxLayout(self.web_loading)
@@ -435,7 +436,7 @@ class MainWindow(QMainWindow):
         center_layout.addWidget(self.web_loading_bar, 0, Qt.AlignmentFlag.AlignHCenter)
 
         wl_layout.addStretch(1)
-        wl_layout.addWidget(center, 0, Qt.AlignmentFlag.AlignHCenter)
+        wl_layout.addWidget(center, 0, Qt.AlignmentFlag.AlignCenter)
         wl_layout.addStretch(1)
 
         self._devtools: QWebEngineView | None = None
@@ -524,6 +525,7 @@ class MainWindow(QMainWindow):
         try:
             if on:
                 self._web_loading_shown_ms = int(__import__("time").time() * 1000)
+                self.web_loading.setGeometry(self.web.rect())
                 self.web_loading.setVisible(True)
                 self.web_loading.raise_()
                 if self.video_overlay.isVisible():
