@@ -101,7 +101,7 @@ class Bridge(QObject):
             return
         self._selected_folder = folder
         # Simple cache invalidation: folder change => new scan.
-        self._media_cache.pop(folder, None)
+        self._media_cache.clear()
         self.selectedFolderChanged.emit(self._selected_folder)
 
     @Slot(result=str)
@@ -202,7 +202,9 @@ class Bridge(QObject):
     def get_tools_status(self) -> dict:
         return {
             "ffmpeg": bool(self._ffmpeg_bin()),
+            "ffmpeg_path": self._ffmpeg_bin() or "",
             "ffprobe": bool(self._ffprobe_bin()),
+            "ffprobe_path": self._ffprobe_bin() or "",
             "thumb_dir": str(self._thumb_dir),
         }
 
@@ -401,6 +403,10 @@ class MainWindow(QMainWindow):
 
 def main() -> None:
     app = QApplication(sys.argv)
+    # Ensure QStandardPaths.AppDataLocation resolves to a stable, app-specific dir.
+    app.setOrganizationName("G1enB1and")
+    app.setApplicationName("MediaManagerX")
+
     win = MainWindow()
     win.show()
     sys.exit(app.exec())

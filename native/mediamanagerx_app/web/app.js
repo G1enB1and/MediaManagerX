@@ -324,7 +324,9 @@ async function main() {
     bridge.get_tools_status(function (st) {
       const ff = st && st.ffmpeg ? 'ffmpeg✓' : 'ffmpeg×';
       const fp = st && st.ffprobe ? 'ffprobe✓' : 'ffprobe×';
-      setStatus(`Ready (${ff}, ${fp})`);
+      const td = st && st.thumb_dir ? st.thumb_dir : '';
+      setStatus(`Ready (${ff}, ${fp})${td ? ' | thumbs: ' + td : ''}`);
+      console.log('tools_status', st);
     });
 
     // Initial sync
