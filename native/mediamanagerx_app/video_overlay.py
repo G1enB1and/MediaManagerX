@@ -6,11 +6,9 @@ from pathlib import Path
 from PySide6.QtCore import QEvent, QTimer, Qt, QUrl
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
-from PySide6.QtMultimediaWidgets import QGraphicsVideoItem
+from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
     QFrame,
-    QGraphicsScene,
-    QGraphicsView,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -61,24 +59,19 @@ class LightboxVideoOverlay(QWidget):
         self.backdrop = QFrame(self)
         self.backdrop.setStyleSheet("background: rgba(0,0,0,190);")
 
-        # Use QGraphicsVideoItem to avoid native-window stacking issues where
-        # controls can render behind the video on some Windows setups.
-        self.scene = QGraphicsScene(self)
-        self.video_item = QGraphicsVideoItem()
-        self.scene.addItem(self.video_item)
+        self.video_widget = QVideoWidget(self)
+        self.video_widget.setStyleSheet("background: black;")
+        self.video_widget.setMouseTracking(True)
+        self.video_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-        self.view = QGraphicsView(self.scene, self)
-        self.view.setStyleSheet("background: transparent;")
-        self.view.setFrameShape(QFrame.Shape.NoFrame)
-        self.view.setMouseTracking(True)
-        self.view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-
-        self.player.setVideoOutput(self.video_item)
+        self.player.setVideoOutput(self.video_widget)
 
         # Controls overlay (true-ish media controls; styled later)
-        self.controls = QWidget(self)
+        # Important: make controls a CHILD of video_widget so they stack above
+        # the video even when QVideoWidget is a native surface on Windows.
+        self.controls = QWidget(self.video_widget)
         self.controls.setStyleSheet(
-            "background: rgba(255,255,255,220); border: 1px solid rgba(0,0,0,40); border-radius: 12px;"
+            "background: rgba(255,255,255,230); border: 1px solid rgba(0,0,0,60); border-radius: 12px;"
         )
         self.controls.setVisible(False)
 
@@ -128,11 +121,11 @@ class LightboxVideoOverlay(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self.backdrop, 1)
-        layout.addWidget(self.view, 0)
+        layout.addWidget(self.video_widget, 0)
 
         # Put the video surface above the backdrop using stacking
         self.backdrop.lower()
-        self.view.raise_()
+        self.video_widget.raise_()
         self.controls.raise_()
 
         # Track seek state
@@ -152,7 +145,7 @@ class LightboxVideoOverlay(QWidget):
         self.backdrop.installEventFilter(self)
 
         # Show controls when mouse moves over the video surface
-        self.view.viewport().installEventFilter(self)
+        self.video_widget.installEventFilter(self)
 
         # ESC closes reliably
         QShortcut(QKeySequence("Escape"), self, activated=self.close_overlay)
@@ -196,21 +189,17 @@ class LightboxVideoOverlay(QWidget):
         # Fit video in viewport with padding (like the web lightbox)
         pad = 20
         r = self.rect().adjusted(pad, pad, -pad, -pad)
-        self.view.setGeometry(r)
+        self.video_widget.setGeometry(r)
 
-        # Keep the video item sized to the view.
-        self.scene.setSceneRect(0, 0, r.width(), r.height())
-        self.video_item.setSize(self.scene.sceneRect().size())
-
-        # Controls bottom overlay (centered)
+        # Controls bottom overlay (centered) — coordinates relative to video_widget
         self.controls.adjustSize()
-        x = r.center().x() - (self.controls.width() // 2)
-        y = r.bottom() - self.controls.height() - 12
-        self.controls.move(max(r.left(), x), max(r.top(), y))
+        x = (self.video_widget.width() // 2) - (self.controls.width() // 2)
+        y = self.video_widget.height() - self.controls.height() - 12
+        self.controls.move(max(12, x), max(12, y))
 
         # Keep stacking order consistent
         self.backdrop.lower()
-        self.view.raise_()
+        self.video_widget.raise_()
         self.controls.raise_()
 
     def open_video(self, req: VideoRequest) -> None:
@@ -230,7 +219,7 @@ class LightboxVideoOverlay(QWidget):
         self.raise_()
         self.activateWindow()
         self.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
-        self.view.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+        self.video_widget.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
 
         if req.autoplay:
             self.player.play()
