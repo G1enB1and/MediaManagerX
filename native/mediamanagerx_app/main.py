@@ -47,6 +47,9 @@ class Bridge(QObject):
         self._thumb_dir.mkdir(parents=True, exist_ok=True)
 
         self.settings = QSettings("G1enB1and", "MediaManagerX")
+        # Per-run seed so "randomize" changes every time you launch the app,
+        # while remaining stable for pagination within a session.
+        self._session_shuffle_seed = random.getrandbits(32)
 
     def _thumb_key(self, path: Path) -> str:
         # Stable across runs; normalize separators + lowercase for Windows.
@@ -149,8 +152,9 @@ class Bridge(QObject):
         candidates.sort(key=lambda p: str(p).lower())
 
         if self._randomize_enabled():
-            # Deterministic shuffle for stable paging.
-            seed = int(hashlib.sha1(folder.encode("utf-8")).hexdigest(), 16) % (2**32)
+            # Stable paging within a session, but different order each app launch.
+            base = int(hashlib.sha1(folder.encode("utf-8")).hexdigest(), 16) % (2**32)
+            seed = (base ^ int(self._session_shuffle_seed)) % (2**32)
             rng = random.Random(seed)
             rng.shuffle(candidates)
 
@@ -253,6 +257,17 @@ class Bridge(QObject):
             # Any setting that impacts ordering should invalidate cache.
             if key == "gallery.randomize":
                 self._media_cache.clear()
+            return True
+        except Exception:
+            return False
+
+    @Slot(result=bool)
+    def reshuffle_gallery(self) -> bool:
+        """Generate a new session seed so the randomized order changes immediately."""
+
+        try:
+            self._session_shuffle_seed = random.getrandbits(32)
+            self._media_cache.clear()
             return True
         except Exception:
             return False

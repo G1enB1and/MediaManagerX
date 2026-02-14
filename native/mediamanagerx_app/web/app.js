@@ -424,12 +424,23 @@ function closeSettings() {
 function wireSettings() {
   const openBtn = document.getElementById('openSettings');
   const closeBtn = document.getElementById('closeSettings');
+  const reshuf = document.getElementById('reshuffle');
   const backdrop = document.getElementById('settingsBackdrop');
   const toggle = document.getElementById('toggleRandomize');
 
   if (openBtn) openBtn.addEventListener('click', openSettings);
   if (closeBtn) closeBtn.addEventListener('click', closeSettings);
   if (backdrop) backdrop.addEventListener('click', closeSettings);
+
+  if (reshuf) {
+    reshuf.addEventListener('click', () => {
+      if (!gBridge || !gBridge.reshuffle_gallery) return;
+      gBridge.reshuffle_gallery(function () {
+        gPage = 0;
+        refreshFromBridge(gBridge);
+      });
+    });
+  }
 
   if (toggle) {
     toggle.addEventListener('change', () => {
