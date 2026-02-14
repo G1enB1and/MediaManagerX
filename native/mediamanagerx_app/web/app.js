@@ -60,21 +60,36 @@ function resetPosterState() {
   }
 }
 
+let gLoadingShownAt = 0;
+const MIN_LOADING_MS = 300;
+
 function setGlobalLoading(on, text = 'Loading…', pct = null) {
   const gl = document.getElementById('globalLoading');
   const t = document.getElementById('loadingText');
   const b = document.getElementById('loadingBar');
   if (!gl || !t || !b) return;
 
-  gl.hidden = !on;
-  t.textContent = text;
+  if (on) {
+    if (gl.hidden) {
+      gLoadingShownAt = Date.now();
+    }
+    gl.hidden = false;
+    t.textContent = text;
 
-  if (pct == null) {
-    // keep existing width
-  } else {
-    const clamped = Math.max(0, Math.min(100, pct));
-    b.style.width = `${clamped}%`;
+    if (pct != null) {
+      const clamped = Math.max(0, Math.min(100, pct));
+      b.style.width = `${clamped}%`;
+    }
+    return;
   }
+
+  // Delay hiding a bit so it's actually visible (prevents "never showed" when
+  // operations complete extremely quickly).
+  const elapsed = Date.now() - (gLoadingShownAt || Date.now());
+  const wait = Math.max(0, MIN_LOADING_MS - elapsed);
+  window.setTimeout(() => {
+    gl.hidden = true;
+  }, wait);
 }
 
 function renderMediaList(items) {
