@@ -58,26 +58,24 @@ class Bridge(QObject):
             video_exts = {".mp4", ".webm", ".mov", ".mkv"}
             exts = image_exts | video_exts
 
-            # NOTE: rglob order is filesystem dependent. We'll sort later.
-            # For now, implement offset/limit in a single pass.
-            out: list[dict] = []
-            skipped = 0
-            want_skip = max(0, int(offset))
-
+            # Deterministic order so paging is stable across runs.
+            candidates: list[Path] = []
             for p in root.rglob("*"):
-                if len(out) >= int(limit):
-                    break
                 if not p.is_file():
                     continue
-
                 ext = p.suffix.lower()
-                if ext not in exts:
-                    continue
+                if ext in exts:
+                    candidates.append(p)
 
-                if skipped < want_skip:
-                    skipped += 1
-                    continue
+            candidates.sort(key=lambda p: str(p).lower())
 
+            start = max(0, int(offset))
+            end = start + max(0, int(limit))
+            page = candidates[start:end]
+
+            out: list[dict] = []
+            for p in page:
+                ext = p.suffix.lower()
                 media_type = "image" if ext in image_exts else "video"
                 out.append(
                     {

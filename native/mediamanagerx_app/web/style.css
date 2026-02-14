@@ -72,6 +72,10 @@ main {
   color: var(--fg);
 }
 
+.tb-btn:disabled {
+  opacity: 0.45;
+}
+
 .tb-label {
   color: var(--muted);
   font-size: 12px;

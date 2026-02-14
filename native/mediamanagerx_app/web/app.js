@@ -152,6 +152,9 @@ function wireLightbox() {
 function setPageLabel() {
   const el = document.getElementById('pageLabel');
   if (el) el.textContent = `Page ${gPage + 1}`;
+
+  const prev = document.getElementById('prevPage');
+  if (prev) prev.disabled = gPage === 0;
 }
 
 function refreshFromBridge(bridge) {
@@ -164,6 +167,9 @@ function refreshFromBridge(bridge) {
     }
     bridge.list_media(folder, PAGE_SIZE, gPage * PAGE_SIZE, function (items) {
       renderMediaList(items);
+
+      const next = document.getElementById('nextPage');
+      if (next) next.disabled = !items || items.length < PAGE_SIZE;
     });
   });
 }
