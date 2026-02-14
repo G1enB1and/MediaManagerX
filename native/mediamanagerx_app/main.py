@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QProgressBar,
     QMenu,
+    QInputDialog,
 )
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -735,16 +736,44 @@ class MainWindow(QMainWindow):
             return
 
         menu = QMenu(self)
-        act_hide = menu.addAction("Hide Folder")
+
+        name = Path(folder_path).name
+        is_hidden = name.startswith(".")
+
+        act_hide = None
+        act_unhide = None
+        if is_hidden:
+            act_unhide = menu.addAction("Unhide Folder")
+        else:
+            act_hide = menu.addAction("Hide Folder")
+
+        act_rename = menu.addAction("Rename…")
 
         chosen = menu.exec(self.tree.viewport().mapToGlobal(pos))
+
         if chosen == act_hide:
             new_path = self.bridge.hide_by_renaming_dot(folder_path)
             if new_path:
-                # After hiding, select the parent folder.
                 parent = str(Path(folder_path).parent)
                 self.tree.setCurrentIndex(self.fs_model.index(parent))
                 self._set_selected_folder(parent)
+
+        if chosen == act_unhide:
+            new_path = self.bridge.unhide_by_renaming_dot(folder_path)
+            if new_path:
+                parent = str(Path(new_path).parent)
+                self.tree.setCurrentIndex(self.fs_model.index(parent))
+                self._set_selected_folder(parent)
+
+        if chosen == act_rename:
+            cur = Path(folder_path).name
+            next_name, ok = QInputDialog.getText(self, "Rename folder", "New name:", text=cur)
+            if ok and next_name and next_name != cur:
+                new_path = self.bridge.rename_path(folder_path, next_name)
+                if new_path:
+                    parent = str(Path(new_path).parent)
+                    self.tree.setCurrentIndex(self.fs_model.index(parent))
+                    self._set_selected_folder(parent)
 
     def choose_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(self, "Choose a media folder")
