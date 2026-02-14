@@ -610,6 +610,11 @@ class MainWindow(QMainWindow):
     def _build_menu(self) -> None:
         file_menu = self.menuBar().addMenu("&File")
 
+        edit_menu = self.menuBar().addMenu("&Edit")
+        settings_action = QAction("&Settings", self)
+        settings_action.triggered.connect(self.open_settings)
+        edit_menu.addAction(settings_action)
+
         pick_action = QAction("Choose &Folder…", self)
         pick_action.triggered.connect(self.choose_folder)
         file_menu.addAction(pick_action)
@@ -898,6 +903,14 @@ class MainWindow(QMainWindow):
     def _on_web_load_progress(self, pct: int) -> None:
         try:
             self.web_loading_bar.setValue(int(pct))
+        except Exception:
+            pass
+
+    def open_settings(self) -> None:
+        try:
+            self.web.page().runJavaScript(
+                "try{ window.__mmx_openSettings && window.__mmx_openSettings(); }catch(e){}"
+            )
         except Exception:
             pass
 

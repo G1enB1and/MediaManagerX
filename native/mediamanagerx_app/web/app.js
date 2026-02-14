@@ -537,6 +537,9 @@ function openSettings() {
   if (m) m.hidden = false;
 }
 
+// Called from native menu
+window.__mmx_openSettings = openSettings;
+
 function closeSettings() {
   const m = document.getElementById('settingsModal');
   if (m) m.hidden = true;
