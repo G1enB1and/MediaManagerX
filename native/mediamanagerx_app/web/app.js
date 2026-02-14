@@ -395,6 +395,16 @@ function wireLightbox() {
   if (img) img.addEventListener('click', (e) => e.stopPropagation());
   if (vid) vid.addEventListener('click', (e) => e.stopPropagation());
 
+  // Right-click on lightbox image/video opens the same context menu
+  const ctxTarget = img || vid;
+  if (ctxTarget) {
+    ctxTarget.addEventListener('contextmenu', (e) => {
+      if (!gMedia || gIndex < 0 || gIndex >= gMedia.length) return;
+      e.preventDefault();
+      showCtx(e.clientX, e.clientY, gMedia[gIndex], gIndex);
+    });
+  }
+
   const btnPrev = document.getElementById('lbPrev');
   const btnNext = document.getElementById('lbNext');
   const btnClose = document.getElementById('lbClose');
