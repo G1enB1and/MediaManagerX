@@ -6,7 +6,7 @@ import subprocess
 import shutil
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, Signal, Slot, QUrl, QDir, QStandardPaths
+from PySide6.QtCore import QObject, Qt, Signal, Slot, QUrl, QDir, QStandardPaths, QSize
 from PySide6.QtGui import QAction, QColor
 from PySide6.QtWidgets import (
     QApplication,
@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QPushButton,
     QHBoxLayout,
+    QProgressBar,
 )
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -403,6 +404,30 @@ class MainWindow(QMainWindow):
         self.web = QWebEngineView()
         right_layout.addWidget(self.web)
 
+        # Native loading overlay shown while the WebEngine page itself is loading.
+        self.web_loading = QWidget(self.web)
+        self.web_loading.setStyleSheet("background: #0f1115;")
+        self.web_loading.setVisible(True)
+
+        wl_layout = QVBoxLayout(self.web_loading)
+        wl_layout.setContentsMargins(24, 24, 24, 24)
+        wl_layout.setSpacing(10)
+        wl_layout.addStretch(1)
+        self.web_loading_label = QLabel("Loading gallery UI…")
+        self.web_loading_label.setStyleSheet("color: rgba(255,255,255,200); font-size: 13px;")
+        wl_layout.addWidget(self.web_loading_label, 0, Qt.AlignmentFlag.AlignHCenter)
+        self.web_loading_bar = QProgressBar()
+        self.web_loading_bar.setRange(0, 100)
+        self.web_loading_bar.setValue(0)
+        self.web_loading_bar.setTextVisible(False)
+        self.web_loading_bar.setFixedSize(QSize(320, 10))
+        self.web_loading_bar.setStyleSheet(
+            "QProgressBar{background: rgba(255,255,255,25); border-radius: 5px;}"
+            "QProgressBar::chunk{background: rgba(138,180,248,230); border-radius: 5px;}"
+        )
+        wl_layout.addWidget(self.web_loading_bar, 0, Qt.AlignmentFlag.AlignHCenter)
+        wl_layout.addStretch(1)
+
         self._devtools: QWebEngineView | None = None
         self.video_overlay = LightboxVideoOverlay(parent=self.web)
         self.video_overlay.setGeometry(self.web.rect())
@@ -421,6 +446,12 @@ class MainWindow(QMainWindow):
         self.web.page().setWebChannel(channel)
 
         index_path = Path(__file__).with_name("web") / "index.html"
+
+        # Web loading signals
+        self.web.loadStarted.connect(lambda: self._set_web_loading(True))
+        self.web.loadProgress.connect(self._on_web_load_progress)
+        self.web.loadFinished.connect(lambda _ok: self._set_web_loading(False))
+
         self.web.setUrl(QUrl.fromLocalFile(str(index_path.resolve())))
 
         splitter.addWidget(left)
@@ -477,6 +508,22 @@ class MainWindow(QMainWindow):
     def _close_video_overlay(self) -> None:
         self.video_overlay.close_overlay()
 
+    def _set_web_loading(self, on: bool) -> None:
+        try:
+            self.web_loading.setVisible(bool(on))
+            self.web_loading.raise_()
+            # Keep video overlay above when active.
+            if self.video_overlay.isVisible():
+                self.video_overlay.raise_()
+        except Exception:
+            pass
+
+    def _on_web_load_progress(self, pct: int) -> None:
+        try:
+            self.web_loading_bar.setValue(int(pct))
+        except Exception:
+            pass
+
     def toggle_devtools(self) -> None:
         if self._devtools is None:
             self._devtools = QWebEngineView()
@@ -490,7 +537,12 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
-        # Keep overlay pinned to the web view.
+        # Keep overlays pinned to the web view.
+        if hasattr(self, "web_loading"):
+            self.web_loading.setGeometry(self.web.rect())
+            if self.web_loading.isVisible():
+                self.web_loading.raise_()
+
         if hasattr(self, "video_overlay") and self.video_overlay.isVisible():
             self.video_overlay.setGeometry(self.web.rect())
             self.video_overlay.raise_()
