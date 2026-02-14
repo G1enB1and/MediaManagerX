@@ -6,9 +6,11 @@ from pathlib import Path
 from PySide6.QtCore import QEvent, QTimer, Qt, QUrl
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
-from PySide6.QtMultimediaWidgets import QVideoWidget
+from PySide6.QtMultimediaWidgets import QGraphicsVideoItem
 from PySide6.QtWidgets import (
     QFrame,
+    QGraphicsScene,
+    QGraphicsView,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -59,18 +61,24 @@ class LightboxVideoOverlay(QWidget):
         self.backdrop = QFrame(self)
         self.backdrop.setStyleSheet("background: rgba(0,0,0,190);")
 
-        self.video_widget = QVideoWidget(self)
-        # Try to avoid a solid black "mat" behind letterboxed video.
-        # (Actual bars are part of the rendered video content scaling.)
-        self.video_widget.setStyleSheet("background: transparent;")
-        self.video_widget.setMouseTracking(True)
-        self.video_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.player.setVideoOutput(self.video_widget)
+        # Use QGraphicsVideoItem to avoid native-window stacking issues where
+        # controls can render behind the video on some Windows setups.
+        self.scene = QGraphicsScene(self)
+        self.video_item = QGraphicsVideoItem()
+        self.scene.addItem(self.video_item)
+
+        self.view = QGraphicsView(self.scene, self)
+        self.view.setStyleSheet("background: transparent;")
+        self.view.setFrameShape(QFrame.Shape.NoFrame)
+        self.view.setMouseTracking(True)
+        self.view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        self.player.setVideoOutput(self.video_item)
 
         # Controls overlay (true-ish media controls; styled later)
         self.controls = QWidget(self)
         self.controls.setStyleSheet(
-            "background: rgba(20,20,25,190); border: 1px solid rgba(255,255,255,50); border-radius: 12px;"
+            "background: rgba(255,255,255,220); border: 1px solid rgba(0,0,0,40); border-radius: 12px;"
         )
         self.controls.setVisible(False)
 
@@ -92,9 +100,9 @@ class LightboxVideoOverlay(QWidget):
 
         for b in (self.btn_play, self.btn_pause, self.btn_mute, self.btn_close):
             b.setStyleSheet(
-                "color: rgba(255,255,255,235); background: transparent; border: none; padding: 6px 10px; font-size: 16px;"
+                "color: rgba(0,0,0,230); background: transparent; border: none; padding: 6px 10px; font-size: 16px;"
             )
-        self.lbl_time.setStyleSheet("color: rgba(255,255,255,200); font-size: 12px;")
+        self.lbl_time.setStyleSheet("color: rgba(0,0,0,180); font-size: 12px;")
         self.slider.setStyleSheet("min-width: 260px;")
 
         self.btn_play.clicked.connect(self.player.play)
@@ -120,10 +128,11 @@ class LightboxVideoOverlay(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self.backdrop, 1)
+        layout.addWidget(self.view, 0)
 
-        # Put the video widget above the backdrop using stacking
+        # Put the video surface above the backdrop using stacking
         self.backdrop.lower()
-        self.video_widget.raise_()
+        self.view.raise_()
         self.controls.raise_()
 
         # Track seek state
@@ -143,7 +152,7 @@ class LightboxVideoOverlay(QWidget):
         self.backdrop.installEventFilter(self)
 
         # Show controls when mouse moves over the video surface
-        self.video_widget.installEventFilter(self)
+        self.view.viewport().installEventFilter(self)
 
         # ESC closes reliably
         QShortcut(QKeySequence("Escape"), self, activated=self.close_overlay)
@@ -156,7 +165,8 @@ class LightboxVideoOverlay(QWidget):
         if obj is self.backdrop and event.type() == QEvent.Type.MouseButtonPress:
             self.close_overlay()
             return True
-        if obj is self.video_widget and event.type() == QEvent.Type.MouseMove:
+        if event.type() == QEvent.Type.MouseMove:
+            # Mouse move anywhere in the video viewport should show controls.
             self._show_controls()
         return super().eventFilter(obj, event)
 
@@ -186,7 +196,11 @@ class LightboxVideoOverlay(QWidget):
         # Fit video in viewport with padding (like the web lightbox)
         pad = 20
         r = self.rect().adjusted(pad, pad, -pad, -pad)
-        self.video_widget.setGeometry(r)
+        self.view.setGeometry(r)
+
+        # Keep the video item sized to the view.
+        self.scene.setSceneRect(0, 0, r.width(), r.height())
+        self.video_item.setSize(self.scene.sceneRect().size())
 
         # Controls bottom overlay (centered)
         self.controls.adjustSize()
@@ -196,7 +210,7 @@ class LightboxVideoOverlay(QWidget):
 
         # Keep stacking order consistent
         self.backdrop.lower()
-        self.video_widget.raise_()
+        self.view.raise_()
         self.controls.raise_()
 
     def open_video(self, req: VideoRequest) -> None:
@@ -216,7 +230,7 @@ class LightboxVideoOverlay(QWidget):
         self.raise_()
         self.activateWindow()
         self.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
-        self.video_widget.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+        self.view.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
 
         if req.autoplay:
             self.player.play()
