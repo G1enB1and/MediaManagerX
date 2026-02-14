@@ -4,9 +4,10 @@ import sys
 import hashlib
 import subprocess
 import shutil
+import random
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, Signal, Slot, QUrl, QDir, QStandardPaths, QSize
+from PySide6.QtCore import QObject, Qt, Signal, Slot, QUrl, QDir, QStandardPaths, QSize, QSettings
 from PySide6.QtGui import QAction, QColor
 from PySide6.QtWidgets import (
     QApplication,
@@ -44,6 +45,8 @@ class Bridge(QObject):
         )
         self._thumb_dir = appdata / "thumbs"
         self._thumb_dir.mkdir(parents=True, exist_ok=True)
+
+        self.settings = QSettings("G1enB1and", "MediaManagerX")
 
     def _thumb_key(self, path: Path) -> str:
         # Stable across runs; normalize separators + lowercase for Windows.
@@ -115,14 +118,21 @@ class Bridge(QObject):
     def get_selected_folder(self) -> str:
         return self._selected_folder
 
+    def _randomize_enabled(self) -> bool:
+        try:
+            return bool(self.settings.value("gallery/randomize", False, type=bool))
+        except Exception:
+            return False
+
     def _scan_media_paths(self, folder: str) -> list[Path]:
-        cached = self._media_cache.get(folder)
+        cache_key = f"{folder}|rand={int(self._randomize_enabled())}"
+        cached = self._media_cache.get(cache_key)
         if cached is not None:
             return cached
 
         root = Path(folder)
         if not root.exists() or not root.is_dir():
-            self._media_cache[folder] = []
+            self._media_cache[cache_key] = []
             return []
 
         image_exts = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
@@ -137,7 +147,14 @@ class Bridge(QObject):
                 candidates.append(p)
 
         candidates.sort(key=lambda p: str(p).lower())
-        self._media_cache[folder] = candidates
+
+        if self._randomize_enabled():
+            # Deterministic shuffle for stable paging.
+            seed = int(hashlib.sha1(folder.encode("utf-8")).hexdigest(), 16) % (2**32)
+            rng = random.Random(seed)
+            rng.shuffle(candidates)
+
+        self._media_cache[cache_key] = candidates
         return candidates
 
     @Slot(str, result=int)
@@ -214,6 +231,31 @@ class Bridge(QObject):
             "ffprobe_path": self._ffprobe_bin() or "",
             "thumb_dir": str(self._thumb_dir),
         }
+
+    @Slot(result=dict)
+    def get_settings(self) -> dict:
+        try:
+            return {
+                "gallery.randomize": bool(
+                    self.settings.value("gallery/randomize", False, type=bool)
+                )
+            }
+        except Exception:
+            return {"gallery.randomize": False}
+
+    @Slot(str, bool, result=bool)
+    def set_setting_bool(self, key: str, value: bool) -> bool:
+        try:
+            if key not in ("gallery.randomize",):
+                return False
+            qkey = key.replace(".", "/")
+            self.settings.setValue(qkey, bool(value))
+            # Any setting that impacts ordering should invalidate cache.
+            if key == "gallery.randomize":
+                self._media_cache.clear()
+            return True
+        except Exception:
+            return False
 
     @Slot(str, result=float)
     def get_video_duration_seconds(self, video_path: str) -> float:

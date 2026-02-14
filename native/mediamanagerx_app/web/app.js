@@ -411,9 +411,41 @@ function wirePager() {
   renderPager();
 }
 
+function openSettings() {
+  const m = document.getElementById('settingsModal');
+  if (m) m.hidden = false;
+}
+
+function closeSettings() {
+  const m = document.getElementById('settingsModal');
+  if (m) m.hidden = true;
+}
+
+function wireSettings() {
+  const openBtn = document.getElementById('openSettings');
+  const closeBtn = document.getElementById('closeSettings');
+  const backdrop = document.getElementById('settingsBackdrop');
+  const toggle = document.getElementById('toggleRandomize');
+
+  if (openBtn) openBtn.addEventListener('click', openSettings);
+  if (closeBtn) closeBtn.addEventListener('click', closeSettings);
+  if (backdrop) backdrop.addEventListener('click', closeSettings);
+
+  if (toggle) {
+    toggle.addEventListener('change', () => {
+      if (!gBridge || !gBridge.set_setting_bool) return;
+      gBridge.set_setting_bool('gallery.randomize', !!toggle.checked, function () {
+        gPage = 0;
+        refreshFromBridge(gBridge);
+      });
+    });
+  }
+}
+
 async function main() {
   wireLightbox();
   wirePager();
+  wireSettings();
 
   // Show immediately on first paint (prevents "nothing then overlay" behavior)
   setGlobalLoading(true, 'Starting…', 10);
@@ -440,6 +472,11 @@ async function main() {
       const td = st && st.thumb_dir ? st.thumb_dir : '';
       setStatus(`Ready (${ff}, ${fp})${td ? ' | thumbs: ' + td : ''}`);
       console.log('tools_status', st);
+    });
+
+    bridge.get_settings(function (s) {
+      const t = document.getElementById('toggleRandomize');
+      if (t) t.checked = !!(s && s['gallery.randomize']);
     });
 
     // Initial sync

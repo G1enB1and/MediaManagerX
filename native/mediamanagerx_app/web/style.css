@@ -36,6 +36,65 @@ header {
   background: var(--panel);
 }
 
+.icon-btn {
+  margin-left: auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  color: var(--fg);
+}
+
+.icon-btn:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+}
+
+.modal[hidden] { display: none; }
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+}
+
+.modal-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, calc(100vw - 40px));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(23, 26, 33, 0.98);
+  padding: 16px;
+}
+
+.modal-title {
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.toggle {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.modal-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .brand {
   font-weight: 700;
   letter-spacing: 0.2px;

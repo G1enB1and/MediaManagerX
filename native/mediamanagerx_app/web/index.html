@@ -11,6 +11,7 @@
       <header>
         <div class="brand">MediaManagerX</div>
         <div class="status" id="status">Starting…</div>
+        <button class="icon-btn" id="openSettings" title="Settings">⚙</button>
       </header>
 
       <main>
@@ -56,6 +57,20 @@
             <div class="lightbox-content">
               <img id="lightboxImg" alt="" />
               <video id="lightboxVideo" controls></video>
+            </div>
+          </div>
+
+          <div class="modal" id="settingsModal" hidden>
+            <div class="modal-backdrop" id="settingsBackdrop"></div>
+            <div class="modal-card">
+              <div class="modal-title">Settings</div>
+              <label class="toggle">
+                <input type="checkbox" id="toggleRandomize" />
+                <span>Randomize gallery order</span>
+              </label>
+              <div class="modal-actions">
+                <button class="tb-btn" id="closeSettings">Close</button>
+              </div>
             </div>
           </div>
         </div>
