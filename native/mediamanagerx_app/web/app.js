@@ -395,15 +395,19 @@ function wireLightbox() {
   if (img) img.addEventListener('click', (e) => e.stopPropagation());
   if (vid) vid.addEventListener('click', (e) => e.stopPropagation());
 
-  // Right-click on lightbox image/video opens the same context menu
-  const ctxTarget = img || vid;
-  if (ctxTarget) {
-    ctxTarget.addEventListener('contextmenu', (e) => {
-      if (!gMedia || gIndex < 0 || gIndex >= gMedia.length) return;
-      e.preventDefault();
-      showCtx(e.clientX, e.clientY, gMedia[gIndex], gIndex);
-    });
-  }
+  // Right-click anywhere on the lightbox (including the image) opens the same context menu.
+  // Use capture to avoid any odd event swallowing.
+  const lb = document.getElementById('lightbox');
+  const handler = (e) => {
+    if (!gMedia || gIndex < 0 || gIndex >= gMedia.length) return;
+    e.preventDefault();
+    e.stopPropagation();
+    showCtx(e.clientX, e.clientY, gMedia[gIndex], gIndex);
+  };
+
+  if (lb) lb.addEventListener('contextmenu', handler, true);
+  if (img) img.addEventListener('contextmenu', handler, true);
+  if (vid) vid.addEventListener('contextmenu', handler, true);
 
   const btnPrev = document.getElementById('lbPrev');
   const btnNext = document.getElementById('lbNext');
