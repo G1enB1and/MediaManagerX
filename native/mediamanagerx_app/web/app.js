@@ -24,10 +24,29 @@ function renderMediaList(items) {
   }
 
   for (const item of items) {
-    const row = document.createElement('div');
-    row.className = 'row';
-    row.textContent = item;
-    el.appendChild(row);
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    if (item.media_type === 'image') {
+      const img = document.createElement('img');
+      img.className = 'thumb';
+      img.loading = 'lazy';
+      img.src = item.url;
+      img.alt = item.path;
+      card.appendChild(img);
+    } else {
+      const ph = document.createElement('div');
+      ph.className = 'thumb placeholder';
+      ph.textContent = 'VIDEO';
+      card.appendChild(ph);
+    }
+
+    const cap = document.createElement('div');
+    cap.className = 'caption';
+    cap.textContent = item.path;
+    card.appendChild(cap);
+
+    el.appendChild(card);
   }
 }
 

@@ -38,11 +38,13 @@ class Bridge(QObject):
         return self._selected_folder
 
     @Slot(str, int, result=list)
-    def list_media(self, folder: str, limit: int = 100) -> list[str]:
-        """Return a simple list of media file paths under folder.
+    def list_media(self, folder: str, limit: int = 100) -> list[dict]:
+        """Return a list of media entries under folder.
 
-        This is intentionally a tiny first bridge method so the Web UI can
-        show *something real* immediately.
+        Each entry is a dict:
+          {"path": <fs-path>, "url": <file://...>, "media_type": "image"|"video"}
+
+        This stays intentionally simple while we build the real gallery.
         """
 
         try:
@@ -50,25 +52,30 @@ class Bridge(QObject):
             if not root.exists() or not root.is_dir():
                 return []
 
-            exts = {
-                ".jpg",
-                ".jpeg",
-                ".png",
-                ".webp",
-                ".gif",
-                ".bmp",
-                ".mp4",
-                ".webm",
-                ".mov",
-                ".mkv",
-            }
+            image_exts = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
+            video_exts = {".mp4", ".webm", ".mov", ".mkv"}
+            exts = image_exts | video_exts
 
-            out: list[str] = []
+            out: list[dict] = []
             for p in root.rglob("*"):
                 if len(out) >= int(limit):
                     break
-                if p.is_file() and p.suffix.lower() in exts:
-                    out.append(str(p))
+                if not p.is_file():
+                    continue
+
+                ext = p.suffix.lower()
+                if ext not in exts:
+                    continue
+
+                media_type = "image" if ext in image_exts else "video"
+                out.append(
+                    {
+                        "path": str(p),
+                        "url": QUrl.fromLocalFile(str(p)).toString(),
+                        "media_type": media_type,
+                    }
+                )
+
             return out
         except Exception:
             # Don't crash the bridge; the UI can display empty state.
