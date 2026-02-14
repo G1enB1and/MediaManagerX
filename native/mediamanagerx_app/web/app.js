@@ -133,6 +133,15 @@ function renderMediaList(items) {
       card.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') openLightboxByIndex(idx);
       });
+
+      card.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (!gBridge || !gBridge.hide_by_renaming_dot) return;
+        if (!item.path) return;
+        gBridge.hide_by_renaming_dot(item.path, function (newPath) {
+          if (newPath) refreshFromBridge(gBridge);
+        });
+      });
     } else {
       const sk = document.createElement('div');
       sk.className = 'skel';
@@ -156,6 +165,15 @@ function renderMediaList(items) {
       card.addEventListener('click', () => openLightboxByIndex(idx));
       card.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') openLightboxByIndex(idx);
+      });
+
+      card.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (!gBridge || !gBridge.hide_by_renaming_dot) return;
+        if (!item.path) return;
+        gBridge.hide_by_renaming_dot(item.path, function (newPath) {
+          if (newPath) refreshFromBridge(gBridge);
+        });
       });
     }
 

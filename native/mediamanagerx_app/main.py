@@ -7,7 +7,18 @@ import shutil
 import random
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, Signal, Slot, QUrl, QDir, QStandardPaths, QSize, QSettings
+from PySide6.QtCore import (
+    QObject,
+    Qt,
+    Signal,
+    Slot,
+    QUrl,
+    QDir,
+    QStandardPaths,
+    QSize,
+    QSettings,
+    QPoint,
+)
 from PySide6.QtGui import QAction, QColor
 from PySide6.QtWidgets import (
     QApplication,
@@ -24,6 +35,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QHBoxLayout,
     QProgressBar,
+    QMenu,
 )
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -326,6 +338,42 @@ class Bridge(QObject):
         except Exception:
             return ""
 
+    @Slot(str, result=str)
+    def hide_by_renaming_dot(self, path: str) -> str:
+        """Hide a file/folder by renaming to dot-prefixed name.
+
+        Returns new path on success, empty string on failure.
+        """
+
+        try:
+            p = Path(path)
+            if not p.exists():
+                return ""
+
+            name = p.name
+            if name.startswith("."):
+                return str(p)
+
+            target = p.with_name(f".{name}")
+            # Collision handling
+            if target.exists():
+                stem = f".{p.stem}"
+                suffix = p.suffix
+                i = 2
+                while True:
+                    cand = p.with_name(f"{stem} ({i}){suffix}")
+                    if not cand.exists():
+                        target = cand
+                        break
+                    i += 1
+
+            p.rename(target)
+            # Invalidate caches so gallery updates
+            self._media_cache.clear()
+            return str(target)
+        except Exception:
+            return ""
+
     # reshuffle_gallery removed intentionally (kept randomize-per-session without UI clutter)
 
     @Slot(str, result=float)
@@ -528,6 +576,10 @@ class MainWindow(QMainWindow):
 
         self.tree.selectionModel().selectionChanged.connect(self._on_tree_selection)
 
+        # Context menu: hide folder
+        self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self._on_tree_context_menu)
+
         left_layout.addWidget(self.tree, 1)
 
         self._set_selected_folder(str(default_root))
@@ -620,6 +672,27 @@ class MainWindow(QMainWindow):
         path = self.fs_model.filePath(idx)
         if path:
             self._set_selected_folder(path)
+
+    def _on_tree_context_menu(self, pos: QPoint) -> None:
+        idx = self.tree.indexAt(pos)
+        if not idx.isValid():
+            return
+
+        folder_path = self.fs_model.filePath(idx)
+        if not folder_path:
+            return
+
+        menu = QMenu(self)
+        act_hide = menu.addAction("Hide Folder")
+
+        chosen = menu.exec(self.tree.viewport().mapToGlobal(pos))
+        if chosen == act_hide:
+            new_path = self.bridge.hide_by_renaming_dot(folder_path)
+            if new_path:
+                # After hiding, select the parent folder.
+                parent = str(Path(folder_path).parent)
+                self.tree.setCurrentIndex(self.fs_model.index(parent))
+                self._set_selected_folder(parent)
 
     def choose_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(self, "Choose a media folder")
