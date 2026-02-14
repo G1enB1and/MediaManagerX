@@ -145,38 +145,17 @@ function openLightboxByIndex(idx) {
 
   const item = gMedia[gIndex];
   if (item.media_type === 'video') {
-    img.style.display = 'none';
-    img.src = '';
-    vid.style.display = 'block';
-    vid.src = item.url;
-    vid.currentTime = 0;
-
-    // Playback policy:
-    // - < 60s: autoplay + loop + muted
-    // - >= 60s (or unknown): paused, user hits play (unmuted)
-    if (gBridge && item.path) {
+    // Use native QtMultimedia player (WebEngine codec support is unreliable).
+    if (gBridge && gBridge.open_native_video && item.path) {
       gBridge.get_video_duration_seconds(item.path, function (dur) {
         const seconds = Number(dur || 0);
         const short = seconds > 0 && seconds < 60;
 
-        if (short) {
-          vid.muted = true;
-          vid.loop = true;
-          vid.autoplay = true;
-          vid.play().catch(() => {});
-        } else {
-          vid.muted = false;
-          vid.loop = false;
-          vid.autoplay = false;
-          vid.pause();
-        }
+        // Policy: short => autoplay+loop muted; long => paused, user plays (unmuted)
+        gBridge.open_native_video(item.path, short, short, short);
       });
-    } else {
-      vid.muted = false;
-      vid.loop = false;
-      vid.autoplay = false;
-      vid.pause();
     }
+    return;
   } else {
     vid.pause();
     vid.style.display = 'none';
