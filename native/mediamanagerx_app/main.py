@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QTreeView,
+    QFileSystemModel,
 )
-from PySide6.QtGui import QFileSystemModel
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
