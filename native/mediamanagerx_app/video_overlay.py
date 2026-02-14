@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QTimer, Qt, QUrl
+from PySide6.QtGui import QKeySequence
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
@@ -13,6 +14,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QVBoxLayout,
     QWidget,
+    QShortcut,
 )
 
 
@@ -32,12 +34,22 @@ class LightboxVideoOverlay(QWidget):
     with QtMultimedia so playback works.
 
     This widget is designed to cover the WebEngine viewport.
+
+    Signals are kept minimal: callers can observe close to sync the web layer.
     """
+
+    # Caller can connect to this to close the web lightbox chrome.
+    # (We avoid importing Signal here to keep this file simple; use callback pattern.)
 
     def __init__(self, *, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setMouseTracking(True)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setVisible(False)
+
+        # Optional close callback (set by owner)
+        self.on_close = None
 
         self.player = QMediaPlayer(self)
         self.audio = QAudioOutput(self)
@@ -47,6 +59,7 @@ class LightboxVideoOverlay(QWidget):
         self.backdrop.setStyleSheet("background: rgba(0,0,0,190);")
 
         self.video_widget = QVideoWidget(self)
+        self.video_widget.setMouseTracking(True)
         self.video_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.player.setVideoOutput(self.video_widget)
 
@@ -60,6 +73,8 @@ class LightboxVideoOverlay(QWidget):
         self.btn_play = QPushButton("⏵", self.controls)
         self.btn_pause = QPushButton("⏸", self.controls)
         self.btn_close = QPushButton("✕", self.controls)
+
+        self.btn_close.setToolTip("Close (Esc)")
 
         for b in (self.btn_play, self.btn_pause, self.btn_close):
             b.setStyleSheet(
@@ -98,6 +113,12 @@ class LightboxVideoOverlay(QWidget):
         # Clicking backdrop closes
         self.backdrop.installEventFilter(self)
 
+        # Show controls when mouse moves over the video surface
+        self.video_widget.installEventFilter(self)
+
+        # ESC closes reliably
+        QShortcut(QKeySequence("Escape"), self, activated=self.close_overlay)
+
         # Track looping
         self._loop = False
         self.player.mediaStatusChanged.connect(self._on_media_status)
@@ -106,6 +127,8 @@ class LightboxVideoOverlay(QWidget):
         if obj is self.backdrop and event.type() == QEvent.Type.MouseButtonPress:
             self.close_overlay()
             return True
+        if obj is self.video_widget and event.type() == QEvent.Type.MouseMove:
+            self._show_controls()
         return super().eventFilter(obj, event)
 
     def mouseMoveEvent(self, event) -> None:  # type: ignore[override]
@@ -136,9 +159,9 @@ class LightboxVideoOverlay(QWidget):
         r = self.rect().adjusted(pad, pad, -pad, -pad)
         self.video_widget.setGeometry(r)
 
-        # Controls top overlay
+        # Controls top-right overlay
         self.controls.adjustSize()
-        self.controls.move(pad, pad)
+        self.controls.move(r.right() - self.controls.width(), r.top())
 
     def open_video(self, req: VideoRequest) -> None:
         path = str(Path(req.path))
@@ -157,6 +180,7 @@ class LightboxVideoOverlay(QWidget):
         self.raise_()
         self.activateWindow()
         self.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+        self.video_widget.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
 
         if req.autoplay:
             self.player.play()
@@ -171,6 +195,11 @@ class LightboxVideoOverlay(QWidget):
         except Exception:
             pass
         self.setVisible(False)
+        if callable(self.on_close):
+            try:
+                self.on_close()
+            except Exception:
+                pass
 
     def _on_media_status(self, status) -> None:
         # Fallback looping if setLoops isn't available.

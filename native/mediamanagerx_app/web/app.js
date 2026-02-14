@@ -188,6 +188,8 @@ function openLightboxByIndex(idx) {
   document.body.style.overflow = 'hidden';
 }
 
+let gClosingFromNative = false;
+
 function closeLightbox() {
   const lb = document.getElementById('lightbox');
   const img = document.getElementById('lightboxImg');
@@ -202,13 +204,23 @@ function closeLightbox() {
   vid.src = '';
   vid.style.display = 'none';
 
-  if (gBridge && gBridge.close_native_video) {
+  if (!gClosingFromNative && gBridge && gBridge.close_native_video) {
     gBridge.close_native_video(function () {});
   }
 
   gIndex = -1;
   document.body.style.overflow = '';
 }
+
+// Called from native when the native overlay closes.
+window.__mmx_closeLightboxFromNative = function () {
+  gClosingFromNative = true;
+  try {
+    closeLightbox();
+  } finally {
+    gClosingFromNative = false;
+  }
+};
 
 function lightboxPrev() {
   if (gIndex <= 0) return;

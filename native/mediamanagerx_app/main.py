@@ -375,6 +375,8 @@ class MainWindow(QMainWindow):
         self._devtools: QWebEngineView | None = None
         self.video_overlay = LightboxVideoOverlay(parent=self.web)
         self.video_overlay.setGeometry(self.web.rect())
+        # When native overlay closes, also close the web lightbox chrome.
+        self.video_overlay.on_close = self._close_web_lightbox
         self.video_overlay.raise_()
 
         channel = QWebChannel(self.web.page())
@@ -416,6 +418,15 @@ class MainWindow(QMainWindow):
         self.video_overlay.open_video(
             VideoRequest(path=path, autoplay=autoplay, loop=loop, muted=muted)
         )
+
+    def _close_web_lightbox(self) -> None:
+        # Ask the web UI to close its lightbox chrome without re-triggering native close.
+        try:
+            self.web.page().runJavaScript(
+                "try{ window.__mmx_closeLightboxFromNative && window.__mmx_closeLightboxFromNative(); }catch(e){}"
+            )
+        except Exception:
+            pass
 
     def _close_video_overlay(self) -> None:
         self.video_overlay.close_overlay()
