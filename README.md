@@ -16,15 +16,12 @@ Phase 1: stable viewer + folder scope + persistent metadata.
 ## Quick start
 ```bash
 cd MediaManager
-make setup
-```
-
-That command creates a **brand-new blank database** at `./data/mediamanager.db` if one does not exist, and initializes schema v1.
-
-If you don’t want to use `make`, you can run:
-```bash
 python3 scripts/setup.py
 ```
+
+That single command creates a **brand-new blank database** at `./data/mediamanager.db` if one does not exist, and initializes schema v1.
+
+(Convenience alias: `make setup` runs the same setup script.)
 
 ## Smoke run
 ```bash
@@ -38,9 +35,4 @@ make test
 ```
 Runs `scripts/dev_check.py` (unit tests + basic sanity checks). Use `python3` explicitly (this repo assumes `python3`, not `python`).
 
-### Manual alternative (still supported)
-```bash
-python3 scripts/init_db.py --db-path ./data/mediamanager.db
-```
-
-No existing database is required for either command.
+No existing database is required.
