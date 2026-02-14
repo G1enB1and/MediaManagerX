@@ -27,17 +27,54 @@ class Bridge(QObject):
     def __init__(self) -> None:
         super().__init__()
         self._selected_folder: str = ""
+        self._media_cache: dict[str, list[Path]] = {}
 
     def set_selected_folder(self, folder: str) -> None:
         folder = folder or ""
         if folder == self._selected_folder:
             return
         self._selected_folder = folder
+        # Simple cache invalidation: folder change => new scan.
+        self._media_cache.pop(folder, None)
         self.selectedFolderChanged.emit(self._selected_folder)
 
     @Slot(result=str)
     def get_selected_folder(self) -> str:
         return self._selected_folder
+
+    def _scan_media_paths(self, folder: str) -> list[Path]:
+        cached = self._media_cache.get(folder)
+        if cached is not None:
+            return cached
+
+        root = Path(folder)
+        if not root.exists() or not root.is_dir():
+            self._media_cache[folder] = []
+            return []
+
+        image_exts = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
+        video_exts = {".mp4", ".webm", ".mov", ".mkv"}
+        exts = image_exts | video_exts
+
+        candidates: list[Path] = []
+        for p in root.rglob("*"):
+            if not p.is_file():
+                continue
+            if p.suffix.lower() in exts:
+                candidates.append(p)
+
+        candidates.sort(key=lambda p: str(p).lower())
+        self._media_cache[folder] = candidates
+        return candidates
+
+    @Slot(str, result=int)
+    def count_media(self, folder: str) -> int:
+        """Return total number of discoverable media items under folder."""
+
+        try:
+            return len(self._scan_media_paths(folder))
+        except Exception:
+            return 0
 
     @Slot(str, int, int, result=list)
     def list_media(self, folder: str, limit: int = 100, offset: int = 0) -> list[dict]:
@@ -45,38 +82,19 @@ class Bridge(QObject):
 
         Each entry is a dict:
           {"path": <fs-path>, "url": <file://...>, "media_type": "image"|"video"}
-
-        This stays intentionally simple while we build the real gallery.
         """
 
         try:
-            root = Path(folder)
-            if not root.exists() or not root.is_dir():
-                return []
-
             image_exts = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
-            video_exts = {".mp4", ".webm", ".mov", ".mkv"}
-            exts = image_exts | video_exts
 
-            # Deterministic order so paging is stable across runs.
-            candidates: list[Path] = []
-            for p in root.rglob("*"):
-                if not p.is_file():
-                    continue
-                ext = p.suffix.lower()
-                if ext in exts:
-                    candidates.append(p)
-
-            candidates.sort(key=lambda p: str(p).lower())
-
+            candidates = self._scan_media_paths(folder)
             start = max(0, int(offset))
             end = start + max(0, int(limit))
             page = candidates[start:end]
 
             out: list[dict] = []
             for p in page:
-                ext = p.suffix.lower()
-                media_type = "image" if ext in image_exts else "video"
+                media_type = "image" if p.suffix.lower() in image_exts else "video"
                 out.append(
                     {
                         "path": str(p),
@@ -87,7 +105,6 @@ class Bridge(QObject):
 
             return out
         except Exception:
-            # Don't crash the bridge; the UI can display empty state.
             return []
 
 

@@ -57,6 +57,14 @@ main {
   margin-bottom: 10px;
 }
 
+.toolbar.bottom {
+  position: static;
+  background: none;
+  backdrop-filter: none;
+  padding: 14px 0 0 0;
+  margin: 0;
+}
+
 .pager {
   display: flex;
   align-items: center;
@@ -76,9 +84,33 @@ main {
   opacity: 0.45;
 }
 
-.tb-label {
+.tb-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tb-page {
+  height: 30px;
+  min-width: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--muted);
   font-size: 12px;
+}
+
+.tb-page[aria-current="page"] {
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tb-ellipsis {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 0 4px;
 }
 
 .pane {
