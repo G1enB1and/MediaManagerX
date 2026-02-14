@@ -10,8 +10,10 @@ from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
+    QLabel,
     QPushButton,
     QSizePolicy,
+    QSlider,
     QVBoxLayout,
     QWidget,
 )
@@ -58,38 +60,59 @@ class LightboxVideoOverlay(QWidget):
         self.backdrop.setStyleSheet("background: rgba(0,0,0,190);")
 
         self.video_widget = QVideoWidget(self)
+        # Try to avoid a solid black "mat" behind letterboxed video.
+        # (Actual bars are part of the rendered video content scaling.)
+        self.video_widget.setStyleSheet("background: transparent;")
         self.video_widget.setMouseTracking(True)
         self.video_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.player.setVideoOutput(self.video_widget)
 
-        # Controls overlay (minimal first pass)
+        # Controls overlay (true-ish media controls; styled later)
         self.controls = QWidget(self)
         self.controls.setStyleSheet(
-            "background: rgba(20,20,25,160); border: 1px solid rgba(255,255,255,40); border-radius: 10px;"
+            "background: rgba(20,20,25,190); border: 1px solid rgba(255,255,255,50); border-radius: 12px;"
         )
         self.controls.setVisible(False)
 
         self.btn_play = QPushButton("⏵", self.controls)
         self.btn_pause = QPushButton("⏸", self.controls)
+        self.btn_mute = QPushButton("🔇", self.controls)
+        self.lbl_time = QLabel("0:00 / 0:00", self.controls)
+        self.slider = QSlider(Qt.Orientation.Horizontal, self.controls)
         self.btn_close = QPushButton("✕", self.controls)
 
         self.btn_close.setToolTip("Close (Esc)")
+        self.btn_play.setToolTip("Play")
+        self.btn_pause.setToolTip("Pause")
+        self.btn_mute.setToolTip("Mute")
 
-        for b in (self.btn_play, self.btn_pause, self.btn_close):
+        self.slider.setRange(0, 0)
+        self.slider.setSingleStep(1000)
+        self.slider.setPageStep(5000)
+
+        for b in (self.btn_play, self.btn_pause, self.btn_mute, self.btn_close):
             b.setStyleSheet(
-                "color: rgba(255,255,255,230); background: transparent; border: none; padding: 6px 10px; font-size: 16px;"
+                "color: rgba(255,255,255,235); background: transparent; border: none; padding: 6px 10px; font-size: 16px;"
             )
+        self.lbl_time.setStyleSheet("color: rgba(255,255,255,200); font-size: 12px;")
+        self.slider.setStyleSheet("min-width: 260px;")
 
         self.btn_play.clicked.connect(self.player.play)
         self.btn_pause.clicked.connect(self.player.pause)
         self.btn_close.clicked.connect(self.close_overlay)
+        self.btn_mute.clicked.connect(self._toggle_mute)
+
+        self.slider.sliderPressed.connect(self._on_seek_start)
+        self.slider.sliderReleased.connect(self._on_seek_commit)
 
         c_layout = QHBoxLayout(self.controls)
-        c_layout.setContentsMargins(10, 6, 10, 6)
+        c_layout.setContentsMargins(12, 8, 12, 8)
         c_layout.setSpacing(10)
         c_layout.addWidget(self.btn_play)
         c_layout.addWidget(self.btn_pause)
-        c_layout.addStretch(1)
+        c_layout.addWidget(self.btn_mute)
+        c_layout.addWidget(self.slider, 1)
+        c_layout.addWidget(self.lbl_time)
         c_layout.addWidget(self.btn_close)
 
         # Layout
@@ -103,11 +126,18 @@ class LightboxVideoOverlay(QWidget):
         self.video_widget.raise_()
         self.controls.raise_()
 
+        # Track seek state
+        self._seeking = False
+
         # Auto-hide controls
         self._hide_timer = QTimer(self)
-        self._hide_timer.setInterval(1200)
+        self._hide_timer.setInterval(2000)
         self._hide_timer.setSingleShot(True)
         self._hide_timer.timeout.connect(self._hide_controls)
+
+        self.player.positionChanged.connect(self._on_position)
+        self.player.durationChanged.connect(self._on_duration)
+        self.player.playbackStateChanged.connect(lambda _s: self._show_controls())
 
         # Clicking backdrop closes
         self.backdrop.installEventFilter(self)
@@ -158,9 +188,16 @@ class LightboxVideoOverlay(QWidget):
         r = self.rect().adjusted(pad, pad, -pad, -pad)
         self.video_widget.setGeometry(r)
 
-        # Controls top-right overlay
+        # Controls bottom overlay (centered)
         self.controls.adjustSize()
-        self.controls.move(r.right() - self.controls.width(), r.top())
+        x = r.center().x() - (self.controls.width() // 2)
+        y = r.bottom() - self.controls.height() - 12
+        self.controls.move(max(r.left(), x), max(r.top(), y))
+
+        # Keep stacking order consistent
+        self.backdrop.lower()
+        self.video_widget.raise_()
+        self.controls.raise_()
 
     def open_video(self, req: VideoRequest) -> None:
         path = str(Path(req.path))
@@ -208,9 +245,53 @@ class LightboxVideoOverlay(QWidget):
             self.player.setPosition(0)
             self.player.play()
 
+    def _format_ms(self, ms: int) -> str:
+        s = max(0, int(ms // 1000))
+        m = s // 60
+        s = s % 60
+        if m >= 60:
+            h = m // 60
+            m = m % 60
+            return f"{h}:{m:02d}:{s:02d}"
+        return f"{m}:{s:02d}"
+
+    def _on_duration(self, dur: int) -> None:
+        self.slider.setRange(0, max(0, int(dur)))
+        self._on_position(self.player.position())
+
+    def _on_position(self, pos: int) -> None:
+        if not self._seeking:
+            self.slider.setValue(int(pos))
+        self.lbl_time.setText(
+            f"{self._format_ms(int(pos))} / {self._format_ms(int(self.player.duration()))}"
+        )
+
+    def _on_seek_start(self) -> None:
+        self._seeking = True
+        self._show_controls()
+
+    def _on_seek_commit(self) -> None:
+        try:
+            self.player.setPosition(int(self.slider.value()))
+        except Exception:
+            pass
+        self._seeking = False
+        self._show_controls()
+
+    def _toggle_mute(self) -> None:
+        m = not self.audio.isMuted()
+        self.audio.setMuted(m)
+        self.btn_mute.setText("🔇" if m else "🔊")
+        self._show_controls()
+
     def _show_controls(self) -> None:
         self.controls.setVisible(True)
+        self.controls.raise_()
         self._hide_timer.start()
 
     def _hide_controls(self) -> None:
+        # Don't hide while seeking.
+        if self._seeking:
+            self._hide_timer.start()
+            return
         self.controls.setVisible(False)
