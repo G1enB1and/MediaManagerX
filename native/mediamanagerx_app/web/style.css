@@ -69,18 +69,25 @@ p {
   line-height: 1.45;
 }
 
-.list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
+.masonry {
+  column-width: 220px;
+  column-gap: 10px;
 }
 
 .card {
+  break-inside: avoid;
+  margin: 0 0 10px 0;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.02);
   overflow: hidden;
   padding: 0;
+  cursor: pointer;
+}
+
+.card:focus {
+  outline: 2px solid rgba(138, 180, 248, 0.8);
+  outline-offset: 2px;
 }
 
 .thumb {
@@ -97,14 +104,42 @@ p {
   color: var(--muted);
   font-size: 12px;
   letter-spacing: 0.6px;
+  height: 120px;
 }
 
-.list .empty {
+.masonry .empty {
   padding: 10px 12px;
   color: var(--muted);
   font-size: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.lightbox-content {
+  position: absolute;
+  inset: 20px;
+  display: grid;
+  place-items: center;
+}
+
+#lightboxImg {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 .kv {

@@ -26,14 +26,20 @@ function renderMediaList(items) {
   for (const item of items) {
     const card = document.createElement('div');
     card.className = 'card';
+    card.tabIndex = 0;
 
     if (item.media_type === 'image') {
       const img = document.createElement('img');
       img.className = 'thumb';
       img.loading = 'lazy';
       img.src = item.url;
-      img.alt = item.path;
+      img.alt = '';
       card.appendChild(img);
+
+      card.addEventListener('click', () => openLightbox(item.url));
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') openLightbox(item.url);
+      });
     } else {
       const ph = document.createElement('div');
       ph.className = 'thumb placeholder';
@@ -43,6 +49,30 @@ function renderMediaList(items) {
 
     el.appendChild(card);
   }
+}
+
+function openLightbox(url) {
+  const lb = document.getElementById('lightbox');
+  const img = document.getElementById('lightboxImg');
+  if (!lb || !img) return;
+  img.src = url;
+  lb.hidden = false;
+}
+
+function closeLightbox() {
+  const lb = document.getElementById('lightbox');
+  const img = document.getElementById('lightboxImg');
+  if (!lb || !img) return;
+  lb.hidden = true;
+  img.src = '';
+}
+
+function wireLightbox() {
+  const backdrop = document.getElementById('lightboxBackdrop');
+  if (backdrop) backdrop.addEventListener('click', closeLightbox);
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeLightbox();
+  });
 }
 
 function refreshFromBridge(bridge) {
@@ -59,6 +89,7 @@ function refreshFromBridge(bridge) {
 }
 
 async function main() {
+  wireLightbox();
   setStatus('Loading bridge…');
 
   if (!window.qt || !window.qt.webChannelTransport) {
