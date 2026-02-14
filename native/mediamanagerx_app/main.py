@@ -31,7 +31,7 @@ from native.mediamanagerx_app.video_overlay import LightboxVideoOverlay, VideoRe
 
 class Bridge(QObject):
     selectedFolderChanged = Signal(str)
-    openVideoRequested = Signal(str, bool, bool, bool)
+    openVideoRequested = Signal(str, bool, bool, bool, int, int)
     closeVideoRequested = Signal()
 
     def __init__(self) -> None:
@@ -239,12 +239,43 @@ class Bridge(QObject):
         except Exception:
             return 0.0
 
+    def _probe_video_size(self, video_path: str) -> tuple[int, int]:
+        """Return (width,height) from ffprobe, or (0,0) if unknown."""
+
+        try:
+            ffprobe = self._ffprobe_bin()
+            if not ffprobe:
+                return (0, 0)
+            cmd = [
+                ffprobe,
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=width,height",
+                "-of",
+                "csv=p=0:s=x",
+                str(video_path),
+            ]
+            r = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            s = (r.stdout or "").strip()
+            if not s or "x" not in s:
+                return (0, 0)
+            w_s, h_s = s.split("x", 1)
+            return (int(w_s), int(h_s))
+        except Exception:
+            return (0, 0)
+
     @Slot(str, bool, bool, bool, result=bool)
     def open_native_video(self, video_path: str, autoplay: bool, loop: bool, muted: bool) -> bool:
         """Ask the native layer to open a video player."""
 
         try:
-            self.openVideoRequested.emit(str(video_path), bool(autoplay), bool(loop), bool(muted))
+            w, h = self._probe_video_size(video_path)
+            self.openVideoRequested.emit(
+                str(video_path), bool(autoplay), bool(loop), bool(muted), int(w), int(h)
+            )
             return True
         except Exception:
             return False
@@ -413,10 +444,19 @@ class MainWindow(QMainWindow):
             self.tree.setCurrentIndex(self.fs_model.index(folder_path))
             self._set_selected_folder(folder_path)
 
-    def _open_video_overlay(self, path: str, autoplay: bool, loop: bool, muted: bool) -> None:
+    def _open_video_overlay(
+        self, path: str, autoplay: bool, loop: bool, muted: bool, width: int, height: int
+    ) -> None:
         self.video_overlay.setGeometry(self.web.rect())
         self.video_overlay.open_video(
-            VideoRequest(path=path, autoplay=autoplay, loop=loop, muted=muted)
+            VideoRequest(
+                path=path,
+                autoplay=autoplay,
+                loop=loop,
+                muted=muted,
+                width=int(width),
+                height=int(height),
+            )
         )
 
     def _close_web_lightbox(self) -> None:

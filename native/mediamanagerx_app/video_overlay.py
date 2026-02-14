@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QTimer, Qt, QUrl, QRect
+from PySide6.QtCore import QEvent, QTimer, Qt, QUrl, QRect, QSize
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtGui import QImage, QPainter
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer, QVideoSink, QVideoFrame
@@ -25,6 +25,8 @@ class VideoRequest:
     autoplay: bool
     loop: bool
     muted: bool
+    width: int = 0
+    height: int = 0
 
 
 class VideoFrameWidget(QWidget):
@@ -36,6 +38,7 @@ class VideoFrameWidget(QWidget):
     def __init__(self, *, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setMouseTracking(True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self._img: QImage | None = None
 
     def set_image(self, img: QImage | None) -> None:
@@ -44,7 +47,8 @@ class VideoFrameWidget(QWidget):
 
     def paintEvent(self, event) -> None:  # type: ignore[override]
         p = QPainter(self)
-        p.fillRect(self.rect(), Qt.GlobalColor.black)
+        # Do NOT paint black behind the video; let the overlay backdrop show.
+        p.fillRect(self.rect(), Qt.GlobalColor.transparent)
 
         if not self._img or self._img.isNull():
             return
@@ -203,12 +207,7 @@ class LightboxVideoOverlay(QWidget):
         self.player.playbackStateChanged.connect(lambda _s: self._show_controls())
 
         # Track native video size (for aspect-ratio correct viewport)
-        self._native_size = None
-        if hasattr(self.player, "videoSizeChanged"):
-            try:
-                self.player.videoSizeChanged.connect(self._on_video_size)  # type: ignore[attr-defined]
-            except Exception:
-                pass
+        self._native_size: QSize | None = None
 
         # Clicking backdrop closes
         self.backdrop.installEventFilter(self)
@@ -294,6 +293,11 @@ class LightboxVideoOverlay(QWidget):
         path = str(Path(req.path))
         self._loop = bool(req.loop)
         self.audio.setMuted(bool(req.muted))
+
+        if req.width > 0 and req.height > 0:
+            self._native_size = QSize(int(req.width), int(req.height))
+        else:
+            self._native_size = None
 
         # Looping support varies by Qt version.
         if hasattr(self.player, "setLoops"):
@@ -403,13 +407,9 @@ class LightboxVideoOverlay(QWidget):
             return f"{h}:{m:02d}:{s:02d}"
         return f"{m}:{s:02d}"
 
-    def _on_video_size(self, size) -> None:
-        try:
-            self._native_size = size
-            # Recompute geometry on next event loop turn.
-            QTimer.singleShot(0, lambda: self.resizeEvent(QEvent(QEvent.Type.Resize)))  # type: ignore[arg-type]
-        except Exception:
-            pass
+    # Note: we intentionally do NOT rely on videoSizeChanged here; we probe the
+    # file's metadata (width/height) via ffprobe in the bridge and pass it in
+    # with the open request.
 
     def _on_duration(self, dur: int) -> None:
         self.slider.setRange(0, max(0, int(dur)))
