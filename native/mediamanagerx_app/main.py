@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, Signal, Slot, QUrl
+from PySide6.QtCore import QObject, Qt, Signal, Slot, QUrl, QDir
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
@@ -14,7 +14,9 @@ from PySide6.QtWidgets import (
     QSplitter,
     QWidget,
     QVBoxLayout,
+    QTreeView,
 )
+from PySide6.QtGui import QFileSystemModel
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
@@ -114,15 +116,34 @@ class MainWindow(QMainWindow):
     def _build_layout(self) -> None:
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # Left: folder/scope placeholder
+        # Left: folder tree (native) — functional first, styling later
         left = QWidget()
         left_layout = QVBoxLayout(left)
-        left_layout.setContentsMargins(12, 12, 12, 12)
-        left_layout.addWidget(QLabel("Folder scope (placeholder)"))
-        self.scope_label = QLabel("No folder selected")
-        self.scope_label.setWordWrap(True)
-        left_layout.addWidget(self.scope_label)
-        left_layout.addStretch(1)
+        left_layout.setContentsMargins(8, 8, 8, 8)
+
+        left_layout.addWidget(QLabel("Folders"))
+
+        self.fs_model = QFileSystemModel(self)
+        self.fs_model.setFilter(QDir.Filter.AllDirs | QDir.Filter.NoDotAndDotDot | QDir.Filter.Drives)
+        self.fs_model.setRootPath(str(Path.home()))
+
+        self.tree = QTreeView()
+        self.tree.setModel(self.fs_model)
+        self.tree.setRootIndex(self.fs_model.index(str(Path.home())))
+        self.tree.setHeaderHidden(True)
+        self.tree.setAnimated(True)
+        self.tree.setIndentation(14)
+        self.tree.setExpandsOnDoubleClick(True)
+
+        # Hide columns: keep only name
+        for col in range(1, self.fs_model.columnCount()):
+            self.tree.hideColumn(col)
+
+        self.tree.selectionModel().selectionChanged.connect(self._on_tree_selection)
+
+        left_layout.addWidget(self.tree, 1)
+
+        self._set_selected_folder(str(Path.home()))
 
         # Right: embedded WebEngine UI scaffold
         right = QWidget()
@@ -146,12 +167,25 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(splitter)
 
+    def _set_selected_folder(self, folder_path: str) -> None:
+        self.bridge.set_selected_folder(folder_path)
+
+    def _on_tree_selection(self, *_args) -> None:
+        idx = self.tree.currentIndex()
+        if not idx.isValid():
+            return
+        path = self.fs_model.filePath(idx)
+        if path:
+            self._set_selected_folder(path)
+
     def choose_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(self, "Choose a media folder")
         if folder:
             folder_path = str(Path(folder))
-            self.scope_label.setText(folder_path)
-            self.bridge.set_selected_folder(folder_path)
+            # Update the tree root and select the chosen folder.
+            self.tree.setRootIndex(self.fs_model.index(folder_path))
+            self.tree.setCurrentIndex(self.fs_model.index(folder_path))
+            self._set_selected_folder(folder_path)
 
     def about(self) -> None:
         QMessageBox.information(
