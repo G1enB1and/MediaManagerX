@@ -137,6 +137,11 @@ function openLightboxByIndex(idx) {
   const vid = document.getElementById('lightboxVideo');
   if (!lb || !img || !vid) return;
 
+  // If we were playing a native overlay video, stop it before switching items.
+  if (gBridge && gBridge.close_native_video) {
+    gBridge.close_native_video(function () {});
+  }
+
   if (!gMedia || gMedia.length === 0) return;
   if (idx < 0) idx = 0;
   if (idx >= gMedia.length) idx = gMedia.length - 1;

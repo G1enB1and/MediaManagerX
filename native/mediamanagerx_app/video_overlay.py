@@ -120,6 +120,13 @@ class LightboxVideoOverlay(QWidget):
         self._hide_timer.start()
         super().leaveEvent(event)
 
+    def keyPressEvent(self, event) -> None:  # type: ignore[override]
+        if event.key() == Qt.Key.Key_Escape:
+            self.close_overlay()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
     def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
         self.backdrop.setGeometry(self.rect())
