@@ -212,7 +212,8 @@ class Bridge(QObject):
             seed = (base ^ int(self._session_shuffle_seed)) % (2**32)
 
             def _rank(p: Path) -> str:
-                s = f"{seed}:{str(p).replace('\\\\','/').lower()}".encode("utf-8")
+                # Use as_posix() to avoid backslash escaping issues on Windows.
+                s = f"{seed}:{p.as_posix().lower()}".encode("utf-8")
                 return hashlib.sha1(s).hexdigest()
 
             candidates.sort(key=_rank)
