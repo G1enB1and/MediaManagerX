@@ -136,6 +136,27 @@ class Bridge(QObject):
         except Exception:
             return ""
 
+    @Slot(str, result=float)
+    def get_video_duration_seconds(self, video_path: str) -> float:
+        """Return duration seconds using ffprobe (0 on failure)."""
+
+        try:
+            cmd = [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(video_path),
+            ]
+            r = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            s = (r.stdout or "").strip()
+            return float(s) if s else 0.0
+        except Exception:
+            return 0.0
+
     @Slot(str, int, int, result=list)
     def list_media(self, folder: str, limit: int = 100, offset: int = 0) -> list[dict]:
         """Return a list of media entries under folder.
