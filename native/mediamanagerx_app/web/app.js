@@ -43,19 +43,25 @@ function renderMediaList(items) {
         if (e.key === 'Enter' || e.key === ' ') openLightboxByIndex(idx);
       });
     } else {
-      const ph = document.createElement('div');
-      ph.className = 'thumb placeholder';
-      ph.textContent = 'VIDEO';
-      card.appendChild(ph);
+      // Video tile: show poster in an <img> to preserve aspect ratio.
+      const img = document.createElement('img');
+      img.className = 'thumb poster';
+      img.alt = '';
+      card.appendChild(img);
 
-      // Ask Qt for a poster frame (ffmpeg cached) and set it as a background.
+      const badge = document.createElement('div');
+      badge.className = 'videoBadge';
+      badge.textContent = 'VIDEO';
+      card.appendChild(badge);
+
+      // Ask Qt for a poster frame (ffmpeg cached).
       if (gBridge && item.path) {
         gBridge.get_video_poster(item.path, function (posterUrl) {
           if (posterUrl) {
-            ph.textContent = '';
-            ph.style.backgroundImage = `url('${posterUrl}')`;
-            ph.style.backgroundSize = 'cover';
-            ph.style.backgroundPosition = 'center';
+            img.src = posterUrl;
+          } else {
+            // fallback: keep empty image; badge remains
+            img.removeAttribute('src');
           }
         });
       }
@@ -310,9 +316,14 @@ async function main() {
 
     gBridge = bridge;
 
+    bridge.get_tools_status(function (st) {
+      const ff = st && st.ffmpeg ? 'ffmpeg✓' : 'ffmpeg×';
+      const fp = st && st.ffprobe ? 'ffprobe✓' : 'ffprobe×';
+      setStatus(`Ready (${ff}, ${fp})`);
+    });
+
     // Initial sync
     refreshFromBridge(bridge);
-    setStatus('Ready');
 
     // React to future changes
     if (bridge.selectedFolderChanged) {

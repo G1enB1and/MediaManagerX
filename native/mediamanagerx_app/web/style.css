@@ -142,6 +142,7 @@ p {
 }
 
 .card {
+  position: relative;
   break-inside: avoid;
   margin: 0 0 10px 0;
   border: 1px solid var(--border);
@@ -165,13 +166,21 @@ p {
   background: #0b0d12;
 }
 
-.thumb.placeholder {
-  display: grid;
-  place-items: center;
-  color: var(--muted);
-  font-size: 12px;
-  letter-spacing: 0.6px;
-  height: 120px;
+.thumb.poster {
+  background: #0b0d12;
+}
+
+.videoBadge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+  letter-spacing: 0.5px;
 }
 
 .masonry .empty {

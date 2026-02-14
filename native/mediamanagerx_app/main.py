@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import hashlib
 import subprocess
+import shutil
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, Signal, Slot, QUrl, QDir
@@ -41,6 +42,12 @@ class Bridge(QObject):
     def _video_poster_path(self, video_path: Path) -> Path:
         return self._thumb_dir / f"{self._thumb_key(video_path)}.jpg"
 
+    def _ffmpeg_bin(self) -> str | None:
+        return shutil.which("ffmpeg")
+
+    def _ffprobe_bin(self) -> str | None:
+        return shutil.which("ffprobe")
+
     def _ensure_video_poster(self, video_path: Path) -> Path | None:
         """Generate a poster jpg for a video using ffmpeg (if missing)."""
 
@@ -48,31 +55,33 @@ class Bridge(QObject):
         if out.exists():
             return out
 
+        ffmpeg = self._ffmpeg_bin()
+        if not ffmpeg:
+            return None
+
         try:
             out.parent.mkdir(parents=True, exist_ok=True)
-            # Grab an early frame; scale down for gallery thumbnails.
+            # Grab a representative frame; avoid black frame at t=0.
             cmd = [
-                "ffmpeg",
+                ffmpeg,
                 "-y",
                 "-hide_banner",
                 "-loglevel",
                 "error",
                 "-ss",
-                "0",
+                "0.5",
                 "-i",
                 str(video_path),
                 "-frames:v",
                 "1",
                 "-vf",
-                "scale='min(640,iw)':-2",
+                "thumbnail,scale='min(640,iw)':-2",
                 "-q:v",
                 "4",
                 str(out),
             ]
             subprocess.run(cmd, check=True)
-            if out.exists():
-                return out
-            return None
+            return out if out.exists() else None
         except Exception:
             return None
 
@@ -136,13 +145,24 @@ class Bridge(QObject):
         except Exception:
             return ""
 
+    @Slot(result=dict)
+    def get_tools_status(self) -> dict:
+        return {
+            "ffmpeg": bool(self._ffmpeg_bin()),
+            "ffprobe": bool(self._ffprobe_bin()),
+        }
+
     @Slot(str, result=float)
     def get_video_duration_seconds(self, video_path: str) -> float:
         """Return duration seconds using ffprobe (0 on failure)."""
 
         try:
+            ffprobe = self._ffprobe_bin()
+            if not ffprobe:
+                return 0.0
+
             cmd = [
-                "ffprobe",
+                ffprobe,
                 "-v",
                 "error",
                 "-show_entries",
