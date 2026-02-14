@@ -22,28 +22,49 @@ There is **no GUI you can “open” yet**—that comes later when we wire in th
 ```bash
 git clone https://github.com/G1enB1and/MediaManagerX.git
 cd MediaManagerX
+```
 
-# optional but recommended: create a venv
+### Windows (PowerShell)
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -U pip
+python -m pip install -e .
+python scripts\setup.py
+```
+
+### Windows (cmd.exe)
+```bat
+python -m venv .venv
+.\.venv\Scripts\activate.bat
+python -m pip install -U pip
+python -m pip install -e .
+python scripts\setup.py
+```
+
+### macOS / Linux
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
-
-# install in editable mode
-pip install -e .
-
-# one command: creates/initializes the DB (default: ./data/mediamanager.db)
+python -m pip install -U pip
+python -m pip install -e .
 python3 scripts/setup.py
 ```
 
-## Run (current smoke CLI)
-```bash
-python3 app/mediamanager/main.py
-# or
-python3 -m app.mediamanager.main
+## Run (current UI shell)
+After installing + running setup, launch the (very early) native UI shell:
+
+### Windows
+```powershell
+python -m native.mediamanagerx_app.main
 ```
 
-You should see output like:
-- `MediaManager ready`
-- `DB: .../data/mediamanager.db`
+### macOS / Linux
+```bash
+python3 -m native.mediamanagerx_app.main
+```
+
+(There’s also a backend smoke runner at `python3 -m app.mediamanager.main`.)
 
 ## If you *do* want `make`
 On Ubuntu/Debian:
