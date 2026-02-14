@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QTimer, Qt, QUrl
+from PySide6.QtCore import QEvent, QTimer, Qt, QUrl, QRect
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtGui import QImage, QPainter
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer, QVideoSink, QVideoFrame
@@ -194,13 +194,21 @@ class LightboxVideoOverlay(QWidget):
         # Auto-hide controls (we'll keep them visible longer; some Windows video
         # surfaces don't reliably emit mouse move events)
         self._hide_timer = QTimer(self)
-        self._hide_timer.setInterval(4000)
+        self._hide_timer.setInterval(2000)
         self._hide_timer.setSingleShot(True)
         self._hide_timer.timeout.connect(self._hide_controls)
 
         self.player.positionChanged.connect(self._on_position)
         self.player.durationChanged.connect(self._on_duration)
         self.player.playbackStateChanged.connect(lambda _s: self._show_controls())
+
+        # Track native video size (for aspect-ratio correct viewport)
+        self._native_size = None
+        if hasattr(self.player, "videoSizeChanged"):
+            try:
+                self.player.videoSizeChanged.connect(self._on_video_size)  # type: ignore[attr-defined]
+            except Exception:
+                pass
 
         # Clicking backdrop closes
         self.backdrop.installEventFilter(self)
@@ -243,16 +251,35 @@ class LightboxVideoOverlay(QWidget):
             return
         super().keyPressEvent(event)
 
+    def _compute_video_rect(self) -> QRect:
+        pad = 20
+        bounds = self.rect().adjusted(pad, pad, -pad, -pad)
+
+        if not self._native_size or self._native_size.width() <= 0 or self._native_size.height() <= 0:
+            return bounds
+
+        vw = float(self._native_size.width())
+        vh = float(self._native_size.height())
+        target_w = bounds.width()
+        target_h = bounds.height()
+
+        # Fit rect preserving aspect ratio
+        scale = min(target_w / vw, target_h / vh)
+        w = int(vw * scale)
+        h = int(vh * scale)
+
+        x = bounds.x() + (bounds.width() - w) // 2
+        y = bounds.y() + (bounds.height() - h) // 2
+        return QRect(x, y, w, h)
+
     def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
         self.backdrop.setGeometry(self.rect())
 
-        # Fit video in viewport with padding (like the web lightbox)
-        pad = 20
-        r = self.rect().adjusted(pad, pad, -pad, -pad)
+        r = self._compute_video_rect()
         self.video_view.setGeometry(r)
 
-        # Controls bottom overlay (centered) — coordinates relative to overlay
+        # Controls bottom overlay (centered)
         self.controls.adjustSize()
         x = r.center().x() - (self.controls.width() // 2)
         y = r.bottom() - self.controls.height() - 12
@@ -375,6 +402,14 @@ class LightboxVideoOverlay(QWidget):
             m = m % 60
             return f"{h}:{m:02d}:{s:02d}"
         return f"{m}:{s:02d}"
+
+    def _on_video_size(self, size) -> None:
+        try:
+            self._native_size = size
+            # Recompute geometry on next event loop turn.
+            QTimer.singleShot(0, lambda: self.resizeEvent(QEvent(QEvent.Type.Resize)))  # type: ignore[arg-type]
+        except Exception:
+            pass
 
     def _on_duration(self, dur: int) -> None:
         self.slider.setRange(0, max(0, int(dur)))
