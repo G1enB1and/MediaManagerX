@@ -62,6 +62,10 @@ class Bridge(QObject):
         try:
             out.parent.mkdir(parents=True, exist_ok=True)
             # Grab a representative frame; avoid black frame at t=0.
+            # NOTE: avoid shell-style quoting in -vf; Windows builds can treat
+            # quotes literally. Also escape the comma inside min().
+            vf = "thumbnail,scale=min(640\\,iw):-2"
+
             cmd = [
                 ffmpeg,
                 "-y",
@@ -75,12 +79,14 @@ class Bridge(QObject):
                 "-frames:v",
                 "1",
                 "-vf",
-                "thumbnail,scale='min(640,iw)':-2",
+                vf,
                 "-q:v",
                 "4",
                 str(out),
             ]
-            subprocess.run(cmd, check=True)
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            if r.returncode != 0:
+                return None
             return out if out.exists() else None
         except Exception:
             return None
@@ -144,6 +150,49 @@ class Bridge(QObject):
             return QUrl.fromLocalFile(str(out)).toString()
         except Exception:
             return ""
+
+    @Slot(str, result=dict)
+    def debug_video_poster(self, video_path: str) -> dict:
+        """Attempt poster generation and return debug info for troubleshooting."""
+
+        p = Path(video_path)
+        out = self._video_poster_path(p)
+        ffmpeg = self._ffmpeg_bin()
+        if not ffmpeg:
+            return {"ok": False, "error": "ffmpeg not found", "out": str(out)}
+
+        vf = "thumbnail,scale=min(640\\,iw):-2"
+        cmd = [
+            ffmpeg,
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-ss",
+            "0.5",
+            "-i",
+            str(p),
+            "-frames:v",
+            "1",
+            "-vf",
+            vf,
+            "-q:v",
+            "4",
+            str(out),
+        ]
+
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            return {
+                "ok": bool(out.exists()) and r.returncode == 0,
+                "returncode": r.returncode,
+                "stderr": (r.stderr or "").strip()[:2000],
+                "stdout": (r.stdout or "").strip()[:2000],
+                "cmd": cmd,
+                "out": str(out),
+            }
+        except Exception as e:
+            return {"ok": False, "error": repr(e), "cmd": cmd, "out": str(out)}
 
     @Slot(result=dict)
     def get_tools_status(self) -> dict:

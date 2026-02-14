@@ -168,6 +168,7 @@ p {
 
 .thumb.poster {
   background: #0b0d12;
+  min-height: 120px;
 }
 
 .videoBadge {

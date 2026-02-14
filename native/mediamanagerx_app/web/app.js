@@ -60,8 +60,13 @@ function renderMediaList(items) {
           if (posterUrl) {
             img.src = posterUrl;
           } else {
-            // fallback: keep empty image; badge remains
+            // fallback: keep placeholder height and log debug if available
             img.removeAttribute('src');
+            if (gBridge.debug_video_poster) {
+              gBridge.debug_video_poster(item.path, function (info) {
+                console.log('debug_video_poster', info);
+              });
+            }
           }
         });
       }
