@@ -677,6 +677,17 @@ class MainWindow(QMainWindow):
         file_menu.addAction(quit_action)
 
         view_menu = self.menuBar().addMenu("&View")
+
+        toggle_left = QAction("Toggle Left Panel", self)
+        toggle_left.triggered.connect(lambda: self._toggle_panel_setting("ui/show_left_panel"))
+        view_menu.addAction(toggle_left)
+
+        toggle_right = QAction("Toggle Right Panel", self)
+        toggle_right.triggered.connect(lambda: self._toggle_panel_setting("ui/show_right_panel"))
+        view_menu.addAction(toggle_right)
+
+        view_menu.addSeparator()
+
         devtools_action = QAction("Toggle &DevTools", self)
         devtools_action.setShortcut("F12")
         devtools_action.triggered.connect(self.toggle_devtools)
@@ -1043,6 +1054,15 @@ class MainWindow(QMainWindow):
     def _on_web_load_progress(self, pct: int) -> None:
         try:
             self.web_loading_bar.setValue(int(pct))
+        except Exception:
+            pass
+
+    def _toggle_panel_setting(self, qkey: str) -> None:
+        try:
+            cur = bool(self.bridge.settings.value(qkey, True, type=bool))
+            new = not cur
+            self.bridge.settings.setValue(qkey, new)
+            self.bridge.uiFlagChanged.emit(qkey.replace("/", "."), new)
         except Exception:
             pass
 
