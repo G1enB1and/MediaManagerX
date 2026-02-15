@@ -614,10 +614,18 @@ function wireSettings() {
     });
   }
 
+  function syncStartFolderEnabled() {
+    const on = !!(restoreToggle && restoreToggle.checked);
+    if (startInput) startInput.disabled = on;
+    if (browse) browse.disabled = on;
+  }
+
   if (restoreToggle) {
     restoreToggle.addEventListener('change', () => {
       if (!gBridge || !gBridge.set_setting_bool) return;
-      gBridge.set_setting_bool('gallery.restore_last', !!restoreToggle.checked, function () {});
+      gBridge.set_setting_bool('gallery.restore_last', !!restoreToggle.checked, function () {
+        syncStartFolderEnabled();
+      });
     });
   }
 
@@ -727,6 +735,8 @@ async function main() {
 
       const r = document.getElementById('toggleRestoreLast');
       if (r) r.checked = !!(s && s['gallery.restore_last']);
+      // keep start folder UI in sync
+      syncStartFolderEnabled && syncStartFolderEnabled();
 
       const hd = document.getElementById('toggleHideDot');
       if (hd) hd.checked = !!(s && s['gallery.hide_dot']);

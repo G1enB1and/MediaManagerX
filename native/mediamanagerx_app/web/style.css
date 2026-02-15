@@ -187,6 +187,10 @@ header {
   padding: 0 10px;
 }
 
+.text:disabled {
+  opacity: 0.55;
+}
+
 .modal-actions {
   margin-top: 14px;
   display: flex;
