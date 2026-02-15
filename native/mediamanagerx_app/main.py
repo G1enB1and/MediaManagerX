@@ -22,6 +22,7 @@ from PySide6.QtCore import (
     QPoint,
 )
 from PySide6.QtGui import QAction, QColor
+from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -45,6 +46,23 @@ from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage
 from native.mediamanagerx_app.video_overlay import LightboxVideoOverlay, VideoRequest
+
+
+class FolderTreeView(QTreeView):
+    """Tree view that does NOT change selection on right-click.
+
+    Windows Explorer behavior: right-click opens context menu without changing
+    the active selection (unless explicitly choosing/selecting).
+    """
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
+        if event.button() == Qt.MouseButton.RightButton:
+            # Let the customContextMenuRequested signal fire, but avoid changing
+            # currentIndex/selection.
+            event.accept()
+            self.customContextMenuRequested.emit(event.position().toPoint())
+            return
+        super().mousePressEvent(event)
 
 
 class Bridge(QObject):
@@ -703,7 +721,7 @@ class MainWindow(QMainWindow):
         self.fs_model.setFilter(QDir.Filter.AllDirs | QDir.Filter.NoDotAndDotDot | QDir.Filter.Drives)
         self.fs_model.setRootPath(str(default_root))
 
-        self.tree = QTreeView()
+        self.tree = FolderTreeView()
         self.tree.setModel(self.fs_model)
         self.tree.setRootIndex(self.fs_model.index(str(default_root)))
         self.tree.setHeaderHidden(True)
