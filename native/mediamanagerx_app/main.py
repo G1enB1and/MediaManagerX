@@ -815,9 +815,14 @@ class MainWindow(QMainWindow):
         self.web_loading_bar.setValue(0)
         self.web_loading_bar.setTextVisible(False)
         self.web_loading_bar.setFixedSize(QSize(320, 10))
+        try:
+            accent = str(self.bridge.settings.value("ui/accent_color", "#8ab4f8", type=str) or "#8ab4f8")
+        except Exception:
+            accent = "#8ab4f8"
+
         self.web_loading_bar.setStyleSheet(
             "QProgressBar{background: rgba(255,255,255,25); border-radius: 5px;}"
-            "QProgressBar::chunk{background: rgba(138,180,248,230); border-radius: 5px;}"
+            f"QProgressBar::chunk{{background: {accent}; border-radius: 5px;}}"
         )
         center_layout.addWidget(self.web_loading_bar, 0, Qt.AlignmentFlag.AlignHCenter)
 
