@@ -139,6 +139,7 @@ function wireCtxMenu() {
   const hideBtn = document.getElementById('ctxHide');
   const unhideBtn = document.getElementById('ctxUnhide');
   const renameBtn = document.getElementById('ctxRename');
+  const metaBtn = document.getElementById('ctxMeta');
   const cancelBtn = document.getElementById('ctxCancel');
 
   if (cancelBtn) cancelBtn.addEventListener('click', hideCtx);
@@ -185,6 +186,15 @@ function wireCtxMenu() {
       if (fromLb) closeLightbox();
       setGlobalLoading(true, 'Renaming…', 25);
       gBridge.rename_path_async(item.path, next, function () {});
+    });
+  }
+
+  if (metaBtn) {
+    metaBtn.addEventListener('click', () => {
+      const item = gCtxItem;
+      hideCtx();
+      if (!item || !item.path || !gBridge || !gBridge.show_metadata) return;
+      gBridge.show_metadata(item.path, function () {});
     });
   }
 }

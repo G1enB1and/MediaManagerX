@@ -71,6 +71,7 @@ class Bridge(QObject):
     closeVideoRequested = Signal()
 
     uiFlagChanged = Signal(str, bool)  # key, value
+    metadataRequested = Signal(str)
 
     # Async file ops (so WebEngine UI doesn't freeze during rename)
     fileOpFinished = Signal(str, bool, str, str)  # op, ok, old_path, new_path
@@ -526,6 +527,14 @@ class Bridge(QObject):
         except Exception:
             return ""
 
+    @Slot(str, result=bool)
+    def show_metadata(self, path: str) -> bool:
+        try:
+            self.metadataRequested.emit(str(path))
+            return True
+        except Exception:
+            return False
+
     # reshuffle_gallery removed intentionally (kept randomize-per-session without UI clutter)
 
     @Slot(str, result=float)
@@ -644,6 +653,7 @@ class MainWindow(QMainWindow):
         self.bridge.openVideoRequested.connect(self._open_video_overlay)
         self.bridge.closeVideoRequested.connect(self._close_video_overlay)
         self.bridge.uiFlagChanged.connect(self._apply_ui_flag)
+        self.bridge.metadataRequested.connect(self._show_metadata_for_path)
 
         self._build_menu()
         self._build_layout()
@@ -862,7 +872,6 @@ class MainWindow(QMainWindow):
     def _apply_ui_flag(self, key: str, value: bool) -> None:
         if key == "ui.show_left_panel":
             try:
-                # left pane is widget 0 in splitter
                 w = self.splitter.widget(0)
                 if w:
                     w.setVisible(bool(value))
@@ -871,12 +880,31 @@ class MainWindow(QMainWindow):
 
         if key == "ui.show_right_panel":
             try:
-                # right pane is widget 2 in splitter
                 w = self.splitter.widget(2)
                 if w:
                     w.setVisible(bool(value))
             except Exception:
                 pass
+
+    def _show_metadata_for_path(self, path: str) -> None:
+        try:
+            p = Path(path)
+            if not p.exists() or not p.is_file():
+                return
+
+            st = p.stat()
+            lines = [
+                f"Name: {p.name}",
+                f"Path: {p}",
+                f"Size: {st.st_size:,} bytes",
+            ]
+            self.meta_text.setText("\n".join(lines))
+
+            # Auto-open right panel
+            self.bridge.settings.setValue("ui/show_right_panel", True)
+            self._apply_ui_flag("ui.show_right_panel", True)
+        except Exception:
+            pass
 
     def _on_tree_context_menu(self, pos: QPoint) -> None:
         idx = self.tree.indexAt(pos)
