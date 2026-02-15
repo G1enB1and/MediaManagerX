@@ -559,6 +559,7 @@ function wireSettings() {
   const startInput = document.getElementById('startFolder');
   const restoreToggle = document.getElementById('toggleRestoreLast');
   const hideDotToggle = document.getElementById('toggleHideDot');
+  const leftToggle = document.getElementById('toggleLeftPanel');
   const accentInput = document.getElementById('accentColor');
 
   if (browse) {
@@ -595,6 +596,13 @@ function wireSettings() {
         gPage = 0;
         refreshFromBridge(gBridge);
       });
+    });
+  }
+
+  if (leftToggle) {
+    leftToggle.addEventListener('change', () => {
+      if (!gBridge || !gBridge.set_setting_bool) return;
+      gBridge.set_setting_bool('ui.show_left_panel', !!leftToggle.checked, function () {});
     });
   }
 
@@ -671,6 +679,9 @@ async function main() {
 
       const hd = document.getElementById('toggleHideDot');
       if (hd) hd.checked = !!(s && s['gallery.hide_dot']);
+
+      const lp = document.getElementById('toggleLeftPanel');
+      if (lp) lp.checked = !!(s && s['ui.show_left_panel']);
 
       const sf = document.getElementById('startFolder');
       if (sf) sf.value = (s && s['gallery.start_folder']) || '';

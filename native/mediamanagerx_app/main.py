@@ -51,6 +51,8 @@ class Bridge(QObject):
     openVideoRequested = Signal(str, bool, bool, bool, int, int)
     closeVideoRequested = Signal()
 
+    uiFlagChanged = Signal(str, bool)  # key, value
+
     # Async file ops (so WebEngine UI doesn't freeze during rename)
     fileOpFinished = Signal(str, bool, str, str)  # op, ok, old_path, new_path
 
@@ -305,6 +307,7 @@ class Bridge(QObject):
                 "gallery.hide_dot": self._hide_dot_enabled(),
                 "gallery.start_folder": self._start_folder_setting(),
                 "ui.accent_color": str(self.settings.value("ui/accent_color", "#8ab4f8", type=str) or "#8ab4f8"),
+                "ui.show_left_panel": bool(self.settings.value("ui/show_left_panel", True, type=bool)),
             }
         except Exception:
             return {
@@ -312,18 +315,31 @@ class Bridge(QObject):
                 "gallery.restore_last": False,
                 "gallery.hide_dot": True,
                 "gallery.start_folder": "",
+                "ui.accent_color": "#8ab4f8",
+                "ui.show_left_panel": True,
             }
 
     @Slot(str, bool, result=bool)
     def set_setting_bool(self, key: str, value: bool) -> bool:
         try:
-            if key not in ("gallery.randomize", "gallery.restore_last", "gallery.hide_dot"):
+            if key not in (
+                "gallery.randomize",
+                "gallery.restore_last",
+                "gallery.hide_dot",
+                "ui.show_left_panel",
+            ):
                 return False
             qkey = key.replace(".", "/")
             self.settings.setValue(qkey, bool(value))
+
             # Any setting that impacts list results/order should invalidate cache.
             if key in ("gallery.randomize", "gallery.hide_dot"):
                 self._media_cache.clear()
+
+            # UI flags should apply immediately.
+            if key.startswith("ui."):
+                self.uiFlagChanged.emit(key, bool(value))
+
             return True
         except Exception:
             return False
@@ -335,6 +351,7 @@ class Bridge(QObject):
                 return False
             qkey = key.replace(".", "/")
             self.settings.setValue(qkey, str(value or ""))
+            # (Future) if key affects UI, we can emit a signal.
             return True
         except Exception:
             return False
@@ -604,6 +621,7 @@ class MainWindow(QMainWindow):
         self.bridge = Bridge()
         self.bridge.openVideoRequested.connect(self._open_video_overlay)
         self.bridge.closeVideoRequested.connect(self._close_video_overlay)
+        self.bridge.uiFlagChanged.connect(self._apply_ui_flag)
 
         self._build_menu()
         self._build_layout()
@@ -639,6 +657,7 @@ class MainWindow(QMainWindow):
 
     def _build_layout(self) -> None:
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter = splitter
 
         # Left: folder tree (native) — functional first, styling later
         left = QWidget()
@@ -701,6 +720,13 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.tree, 1)
 
         self._set_selected_folder(str(default_root))
+
+        # Apply UI flags from settings
+        try:
+            show_left = bool(self.bridge.settings.value("ui/show_left_panel", True, type=bool))
+            self._apply_ui_flag("ui.show_left_panel", show_left)
+        except Exception:
+            pass
 
         # Right: embedded WebEngine UI scaffold
         right = QWidget()
@@ -790,6 +816,16 @@ class MainWindow(QMainWindow):
         path = self.fs_model.filePath(idx)
         if path:
             self._set_selected_folder(path)
+
+    def _apply_ui_flag(self, key: str, value: bool) -> None:
+        if key == "ui.show_left_panel":
+            try:
+                # left pane is widget 0 in splitter
+                w = self.splitter.widget(0)
+                if w:
+                    w.setVisible(bool(value))
+            except Exception:
+                pass
 
     def _on_tree_context_menu(self, pos: QPoint) -> None:
         idx = self.tree.indexAt(pos)
