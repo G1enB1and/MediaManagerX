@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QMenu,
     QInputDialog,
+    QTextEdit,
 )
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -308,6 +309,7 @@ class Bridge(QObject):
                 "gallery.start_folder": self._start_folder_setting(),
                 "ui.accent_color": str(self.settings.value("ui/accent_color", "#8ab4f8", type=str) or "#8ab4f8"),
                 "ui.show_left_panel": bool(self.settings.value("ui/show_left_panel", True, type=bool)),
+                "ui.show_right_panel": bool(self.settings.value("ui/show_right_panel", True, type=bool)),
             }
         except Exception:
             return {
@@ -317,6 +319,7 @@ class Bridge(QObject):
                 "gallery.start_folder": "",
                 "ui.accent_color": "#8ab4f8",
                 "ui.show_left_panel": True,
+                "ui.show_right_panel": True,
             }
 
     @Slot(str, bool, result=bool)
@@ -327,6 +330,7 @@ class Bridge(QObject):
                 "gallery.restore_last",
                 "gallery.hide_dot",
                 "ui.show_left_panel",
+                "ui.show_right_panel",
             ):
                 return False
             qkey = key.replace(".", "/")
@@ -728,13 +732,24 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
-        # Right: embedded WebEngine UI scaffold
-        right = QWidget()
-        right_layout = QVBoxLayout(right)
-        right_layout.setContentsMargins(0, 0, 0, 0)
+        # Center: embedded WebEngine UI scaffold
+        center = QWidget()
+        center_layout = QVBoxLayout(center)
+        center_layout.setContentsMargins(0, 0, 0, 0)
 
         self.web = QWebEngineView()
-        right_layout.addWidget(self.web)
+        center_layout.addWidget(self.web)
+
+        # Right: metadata panel placeholder
+        meta = QWidget()
+        meta_layout = QVBoxLayout(meta)
+        meta_layout.setContentsMargins(8, 8, 8, 8)
+        meta_layout.setSpacing(8)
+        meta_layout.addWidget(QLabel("Metadata"))
+        self.meta_text = QTextEdit()
+        self.meta_text.setReadOnly(True)
+        self.meta_text.setText("(Metadata panel scaffold)\n\nSelect a file to show details here.")
+        meta_layout.addWidget(self.meta_text, 1)
 
         # Native loading overlay shown while the WebEngine page itself is loading.
         self.web_loading = QWidget(self.web)
@@ -800,11 +815,20 @@ class MainWindow(QMainWindow):
         self.web.setUrl(QUrl.fromLocalFile(str(index_path.resolve())))
 
         splitter.addWidget(left)
-        splitter.addWidget(right)
+        splitter.addWidget(center)
+        splitter.addWidget(meta)
         splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 3)
+        splitter.setStretchFactor(1, 4)
+        splitter.setStretchFactor(2, 1)
 
         self.setCentralWidget(splitter)
+
+        # Apply right panel flag from settings
+        try:
+            show_right = bool(self.bridge.settings.value("ui/show_right_panel", True, type=bool))
+            self._apply_ui_flag("ui.show_right_panel", show_right)
+        except Exception:
+            pass
 
     def _set_selected_folder(self, folder_path: str) -> None:
         self.bridge.set_selected_folder(folder_path)
@@ -822,6 +846,15 @@ class MainWindow(QMainWindow):
             try:
                 # left pane is widget 0 in splitter
                 w = self.splitter.widget(0)
+                if w:
+                    w.setVisible(bool(value))
+            except Exception:
+                pass
+
+        if key == "ui.show_right_panel":
+            try:
+                # right pane is widget 2 in splitter
+                w = self.splitter.widget(2)
                 if w:
                     w.setVisible(bool(value))
             except Exception:
