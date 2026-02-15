@@ -189,12 +189,23 @@ function wireCtxMenu() {
   }
 }
 
+function applySearch(items) {
+  const q = (gSearchQuery || '').trim().toLowerCase();
+  if (!q) return items;
+  return items.filter((it) => {
+    const p = (it.path || '').toLowerCase();
+    return p.includes(q);
+  });
+}
+
 function renderMediaList(items) {
   const el = document.getElementById('mediaList');
   if (!el) return;
 
   el.innerHTML = '';
   gMedia = Array.isArray(items) ? items : [];
+
+  const viewItems = applySearch(gMedia);
 
   resetPosterState();
   ensurePosterObserver();
@@ -207,7 +218,15 @@ function renderMediaList(items) {
     return;
   }
 
-  items.forEach((item, idx) => {
+  if (viewItems.length === 0) {
+    const div = document.createElement('div');
+    div.className = 'empty';
+    div.textContent = 'No results.';
+    el.appendChild(div);
+    return;
+  }
+
+  viewItems.forEach((item, idx) => {
     const card = document.createElement('div');
     card.className = 'card';
     card.tabIndex = 0;
@@ -276,6 +295,8 @@ let gBridge = null;
 let gPage = 0;
 let gTotal = 0;
 const PAGE_SIZE = 100;
+
+let gSearchQuery = '';
 
 // Lazy poster loading for videos
 let gPosterObserver = null;
@@ -635,11 +656,23 @@ function wireSettings() {
   }
 }
 
+function wireSearch() {
+  const inp = document.getElementById('searchInput');
+  if (!inp) return;
+
+  inp.addEventListener('input', () => {
+    gSearchQuery = inp.value || '';
+    // Re-render current page with filter applied.
+    renderMediaList(gMedia);
+  });
+}
+
 async function main() {
   wireLightbox();
   wirePager();
   wireSettings();
   wireCtxMenu();
+  wireSearch();
 
   // Show immediately on first paint (prevents "nothing then overlay" behavior)
   setGlobalLoading(true, 'Starting…', 10);
