@@ -1,0 +1,91 @@
+Metadata-Version: 2.4
+Name: mediamanagerx
+Version: 0.1.0
+Summary: Local-first media asset manager
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: PySide6>=6.6
+
+# MediaManager
+
+Local-first media asset manager (Phase 1 foundation).
+
+## Current focus
+Phase 1: stable viewer + folder scope + persistent metadata.
+
+## Repo layout
+- `app/mediamanager/` — Python package code
+- `native/` — PySide6 shell integration (planned)
+- `server/` — embedded web gallery assets/services (planned)
+- `docs/` — architecture + implementation notes
+- `scripts/` — dev utilities
+- `tests/` — test suite
+
+## Status
+This repo is currently **Phase 1 foundation** (DB + repository layer + tests + a tiny CLI smoke runner).
+
+There is **no GUI you can “open” yet**—that comes later when we wire in the native shell + viewer.
+
+## Quick start (no `make` required)
+```bash
+git clone https://github.com/G1enB1and/MediaManagerX.git
+cd MediaManagerX
+```
+
+### Windows (PowerShell)
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -U pip
+python -m pip install -e .
+python scripts\setup.py
+```
+
+### Windows (cmd.exe)
+```bat
+python -m venv .venv
+.\.venv\Scripts\activate.bat
+python -m pip install -U pip
+python -m pip install -e .
+python scripts\setup.py
+```
+
+### macOS / Linux
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install -e .
+python3 scripts/setup.py
+```
+
+## Run (current UI shell)
+After installing + running setup, launch the (very early) native UI shell:
+
+### Windows
+```powershell
+python -m native.mediamanagerx_app.main
+```
+
+### macOS / Linux
+```bash
+python3 -m native.mediamanagerx_app.main
+```
+
+(There’s also a backend smoke runner at `python3 -m app.mediamanager.main`.)
+
+## If you *do* want `make`
+On Ubuntu/Debian:
+```bash
+sudo apt update
+sudo apt install make
+```
+Then these convenience targets work:
+- `make setup` → runs `python3 scripts/setup.py`
+- `make run` → runs the smoke CLI
+- `make test` → runs `python3 scripts/dev_check.py`
+
+## Tests / validation (no `make` required)
+```bash
+python3 scripts/dev_check.py
+```

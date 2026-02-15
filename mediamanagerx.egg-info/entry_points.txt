@@ -1,0 +1,2 @@
+[console_scripts]
+mediamanagerx = native.mediamanagerx_app.main:main
