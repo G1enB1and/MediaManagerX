@@ -4,6 +4,7 @@
   --muted: #9aa4b2;
   --panel: #171a21;
   --border: #2a2f3a;
+  --accent: #8ab4f8;
 }
 
 html,
@@ -138,6 +139,21 @@ header {
 .field-row {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+.color {
+  width: 46px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .text {
@@ -203,7 +219,7 @@ main {
   height: 22px;
   border-radius: 50%;
   border: 3px solid rgba(255, 255, 255, 0.15);
-  border-top-color: rgba(138, 180, 248, 0.95);
+  border-top-color: var(--accent);
   animation: spin 1s linear infinite;
 }
 
@@ -224,7 +240,7 @@ main {
 .bar-fill {
   height: 100%;
   width: 0%;
-  background: rgba(138, 180, 248, 0.95);
+  background: var(--accent);
   border-radius: 999px;
   transition: width 140ms linear;
 }
@@ -286,7 +302,8 @@ main {
 
 .tb-page[aria-current="page"] {
   color: var(--fg);
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
 }
 
 .tb-ellipsis {
@@ -362,7 +379,7 @@ p {
   height: 18px;
   border-radius: 50%;
   border: 3px solid rgba(255,255,255,0.12);
-  border-top-color: rgba(138, 180, 248, 0.85);
+  border-top-color: var(--accent);
   animation: spin 1s linear infinite;
 }
 

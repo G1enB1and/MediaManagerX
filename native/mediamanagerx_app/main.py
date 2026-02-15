@@ -304,6 +304,7 @@ class Bridge(QObject):
                 "gallery.restore_last": self._restore_last_enabled(),
                 "gallery.hide_dot": self._hide_dot_enabled(),
                 "gallery.start_folder": self._start_folder_setting(),
+                "ui.accent_color": str(self.settings.value("ui/accent_color", "#8ab4f8", type=str) or "#8ab4f8"),
             }
         except Exception:
             return {
@@ -330,7 +331,7 @@ class Bridge(QObject):
     @Slot(str, str, result=bool)
     def set_setting_str(self, key: str, value: str) -> bool:
         try:
-            if key not in ("gallery.start_folder",):
+            if key not in ("gallery.start_folder", "ui.accent_color"):
                 return False
             qkey = key.replace(".", "/")
             self.settings.setValue(qkey, str(value or ""))

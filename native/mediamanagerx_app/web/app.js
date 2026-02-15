@@ -559,6 +559,7 @@ function wireSettings() {
   const startInput = document.getElementById('startFolder');
   const restoreToggle = document.getElementById('toggleRestoreLast');
   const hideDotToggle = document.getElementById('toggleHideDot');
+  const accentInput = document.getElementById('accentColor');
 
   if (browse) {
     browse.addEventListener('click', () => {
@@ -594,6 +595,16 @@ function wireSettings() {
         gPage = 0;
         refreshFromBridge(gBridge);
       });
+    });
+  }
+
+  if (accentInput) {
+    accentInput.addEventListener('input', () => {
+      const v = accentInput.value || '#8ab4f8';
+      document.documentElement.style.setProperty('--accent', v);
+      if (gBridge && gBridge.set_setting_str) {
+        gBridge.set_setting_str('ui.accent_color', v, function () {});
+      }
     });
   }
 
@@ -663,6 +674,11 @@ async function main() {
 
       const sf = document.getElementById('startFolder');
       if (sf) sf.value = (s && s['gallery.start_folder']) || '';
+
+      const ac = document.getElementById('accentColor');
+      const v = (s && s['ui.accent_color']) || '#8ab4f8';
+      document.documentElement.style.setProperty('--accent', v);
+      if (ac) ac.value = v;
     });
 
     // Initial sync
