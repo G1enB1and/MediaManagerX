@@ -21,7 +21,7 @@ from PySide6.QtCore import (
     QSettings,
     QPoint,
 )
-from PySide6.QtGui import QAction, QColor
+from PySide6.QtGui import QAction, QColor, QImageReader
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import (
     QApplication,
@@ -893,11 +893,35 @@ class MainWindow(QMainWindow):
                 return
 
             st = p.stat()
+
             lines = [
                 f"Name: {p.name}",
                 f"Path: {p}",
                 f"Size: {st.st_size:,} bytes",
+                f"Modified: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(st.st_mtime))}",
             ]
+
+            # Try to add dimensions without fully decoding
+            try:
+                reader = QImageReader(str(p))
+                sz = reader.size()
+                if sz.isValid() and sz.width() > 0 and sz.height() > 0:
+                    lines.append(f"Resolution: {sz.width()} x {sz.height()}")
+            except Exception:
+                pass
+
+            # Video duration/resolution via ffprobe if it's a video
+            if p.suffix.lower() in {'.mp4', '.webm', '.mov', '.mkv'}:
+                try:
+                    w, h = self.bridge._probe_video_size(str(p))
+                    if w and h:
+                        lines.append(f"Video size: {w} x {h}")
+                    dur = self.bridge.get_video_duration_seconds(str(p))
+                    if dur:
+                        lines.append(f"Duration: {dur:.2f}s")
+                except Exception:
+                    pass
+
             self.meta_text.setText("\n".join(lines))
 
             # Auto-open right panel
