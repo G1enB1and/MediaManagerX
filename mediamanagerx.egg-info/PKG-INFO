@@ -4,7 +4,7 @@ Version: 0.1.0
 Summary: Local-first media asset manager
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
-Requires-Dist: PySide6>=6.6
+Requires-Dist: PySide6<6.10,>=6.8.2.1
 
 # MediaManager
 
