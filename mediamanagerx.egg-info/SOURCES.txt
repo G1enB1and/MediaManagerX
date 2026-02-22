@@ -11,6 +11,7 @@ mediamanagerx.egg-info/top_level.txt
 tests/test_choose_columns.py
 tests/test_connect.py
 tests/test_db_init.py
+tests/test_hashing_and_moves.py
 tests/test_main_bootstrap.py
 tests/test_masonry_layout.py
 tests/test_media_repo.py
